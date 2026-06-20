@@ -5,10 +5,14 @@ from typing import Annotated
 
 import typer
 from rich.console import Console
+from rich.table import Table
 
-from wc_forecast.data.ingest_results import save_processed_results
+from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
+from wc_forecast.models.elo import EloModel
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
+DEFAULT_ELO_RATINGS_PATH = Path("outputs/elo_ratings.csv")
+DEFAULT_ELO_HISTORY_PATH = Path("outputs/elo_history.csv")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -47,6 +51,53 @@ def ingest_results(
     """Validate and process historical international football results."""
     destination = save_processed_results(input_path=input_path, output_path=output_path)
     console.print(f"[green]Processed results written to:[/green] {destination}")
+
+
+@app.command("build-elo")
+def build_elo(
+    results_path: Annotated[
+        Path,
+        typer.Argument(help="Path to processed historical results CSV."),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    ratings_output: Annotated[
+        Path,
+        typer.Option(
+            "--ratings-output",
+            help="Path for latest Elo ratings CSV.",
+        ),
+    ] = DEFAULT_ELO_RATINGS_PATH,
+    history_output: Annotated[
+        Path,
+        typer.Option(
+            "--history-output",
+            help="Path for match-level Elo history CSV.",
+        ),
+    ] = DEFAULT_ELO_HISTORY_PATH,
+) -> None:
+    """Build custom Elo ratings from historical match results."""
+    results = load_historical_results(results_path)
+
+    model = EloModel()
+    history = model.fit(results)
+    ratings = model.ratings_table()
+
+    ratings_output.parent.mkdir(parents=True, exist_ok=True)
+    history_output.parent.mkdir(parents=True, exist_ok=True)
+
+    ratings.to_csv(ratings_output, index=False)
+    history.to_csv(history_output, index=False)
+
+    table = Table(title="Top Elo Ratings")
+    table.add_column("Rank", justify="right")
+    table.add_column("Team")
+    table.add_column("Elo Rating", justify="right")
+
+    for rank, row in enumerate(ratings.head(10).itertuples(index=False), start=1):
+        table.add_row(str(rank), row.team, f"{row.elo_rating:.1f}")
+
+    console.print(table)
+    console.print(f"[green]Elo ratings written to:[/green] {ratings_output}")
+    console.print(f"[green]Elo history written to:[/green] {history_output}")
 
 
 if __name__ == "__main__":
