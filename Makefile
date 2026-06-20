@@ -65,13 +65,16 @@ settle-prediction:
 	  --closing-draw-odds $(CLOSING_DRAW_ODDS) \
 	  --closing-away-odds $(CLOSING_AWAY_ODDS)
 
+report-ledger:
+	$(PYTHON) -m wc_forecast report-ledger
+
 simulate-group-stage:
 	$(PYTHON) -m wc_forecast simulate-group-stage --n-simulations $(N_SIMULATIONS)
 
 report-group-stage:
 	$(PYTHON) -m wc_forecast report-group-stage
 
-demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge log-prediction settle-prediction simulate-group-stage report-group-stage
+demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge log-prediction settle-prediction report-ledger simulate-group-stage report-group-stage
 	@echo "Demo pipeline complete."
 
 clean:

@@ -55,6 +55,7 @@ jobs:
             --closing-home-odds 2.10 \
             --closing-draw-odds 3.25 \
             --closing-away-odds 3.60
+          python -m wc_forecast report-ledger
           python -m wc_forecast simulate-group-stage --n-simulations 100
           python -m wc_forecast report-group-stage
           make demo
