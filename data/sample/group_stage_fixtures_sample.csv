@@ -1,0 +1,13 @@
+group,home_team,away_team,neutral
+Group A,Argentina,France,True
+Group A,Argentina,Brazil,True
+Group A,Argentina,Spain,True
+Group A,France,Brazil,True
+Group A,France,Spain,True
+Group A,Brazil,Spain,True
+Group B,England,Iran,True
+Group B,England,Netherlands,True
+Group B,England,Ecuador,True
+Group B,Iran,Netherlands,True
+Group B,Iran,Ecuador,True
+Group B,Netherlands,Ecuador,True

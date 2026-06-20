@@ -14,6 +14,7 @@ from wc_forecast.models.elo import EloModel
 from wc_forecast.models.poisson import PoissonGoalsModel, save_poisson_prediction
 from wc_forecast.reporting.match_report import save_match_prediction_report
 from wc_forecast.reporting.prediction_report import save_backtest_report
+from wc_forecast.simulation.group_stage import save_group_stage_simulation
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_FEATURES_PATH = Path("data/processed/features.csv")
@@ -25,6 +26,8 @@ DEFAULT_BACKTEST_REPORT_PATH = Path("reports/logistic_backtest_report.md")
 DEFAULT_POISSON_PREDICTION_PATH = Path("outputs/poisson_prediction.csv")
 DEFAULT_MATCH_PREDICTION_PATH = Path("outputs/match_prediction.csv")
 DEFAULT_MATCH_REPORT_PATH = Path("reports/match_prediction_report.md")
+DEFAULT_GROUP_FIXTURES_PATH = Path("data/sample/group_stage_fixtures_sample.csv")
+DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -343,6 +346,65 @@ def report_match(
 
     console.print(f"[green]Match prediction written to:[/green] {prediction_destination}")
     console.print(f"[green]Match report written to:[/green] {report_destination}")
+
+
+@app.command("simulate-group-stage")
+def simulate_group_stage_command(
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results-path",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    fixtures_path: Annotated[
+        Path,
+        typer.Option(
+            "--fixtures-path",
+            help="Path to group-stage fixture CSV.",
+        ),
+    ] = DEFAULT_GROUP_FIXTURES_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for group-stage simulation summary CSV.",
+        ),
+    ] = DEFAULT_GROUP_SIMULATION_PATH,
+    n_simulations: Annotated[
+        int,
+        typer.Option(
+            "--n-simulations",
+            help="Number of Monte Carlo simulations to run.",
+        ),
+    ] = 1_000,
+    qualifiers_per_group: Annotated[
+        int,
+        typer.Option(
+            "--qualifiers-per-group",
+            help="Number of teams advancing from each group.",
+        ),
+    ] = 2,
+    seed: Annotated[
+        int,
+        typer.Option(
+            "--seed",
+            help="Random seed for reproducible simulation.",
+        ),
+    ] = 42,
+) -> None:
+    """Run Monte Carlo group-stage simulation."""
+    destination = save_group_stage_simulation(
+        results_path=results_path,
+        fixtures_path=fixtures_path,
+        output_path=output_path,
+        n_simulations=n_simulations,
+        qualifiers_per_group=qualifiers_per_group,
+        seed=seed,
+    )
+
+    console.print(f"[green]Group-stage simulation written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
