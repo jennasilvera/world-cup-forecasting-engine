@@ -14,6 +14,7 @@ from wc_forecast.ledger.prediction_ledger import (
     save_market_prediction_to_ledger,
     settle_prediction_ledger_row,
 )
+from wc_forecast.models.batch_market import save_market_odds_slate_evaluation
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
 from wc_forecast.models.market import (
@@ -44,6 +45,8 @@ DEFAULT_GROUP_FIXTURES_PATH = Path("data/sample/group_stage_fixtures_sample.csv"
 DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
 DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_report.md")
 DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
+DEFAULT_MARKET_ODDS_PATH = Path("data/sample/market_odds_sample.csv")
+DEFAULT_BATCH_MARKET_EDGE_PATH = Path("outputs/batch_market_edges.csv")
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
 DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("outputs/prediction_ledger_report.md")
 
@@ -788,6 +791,76 @@ def report_ledger(
     )
 
     console.print(f"[green]Prediction ledger report written to:[/green] {destination}")
+
+
+@app.command("batch-evaluate-market")
+def batch_evaluate_market(
+    odds_path: Annotated[
+        Path,
+        typer.Argument(help="Path to market odds slate CSV."),
+    ] = DEFAULT_MARKET_ODDS_PATH,
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results-path",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for batch market edge CSV.",
+        ),
+    ] = DEFAULT_BATCH_MARKET_EDGE_PATH,
+    minimum_edge: Annotated[
+        float,
+        typer.Option(
+            "--minimum-edge",
+            help="Minimum model-vs-market probability edge.",
+        ),
+    ] = 0.03,
+    minimum_expected_value: Annotated[
+        float,
+        typer.Option(
+            "--minimum-expected-value",
+            help="Minimum expected value for candidate edge.",
+        ),
+    ] = 0.02,
+) -> None:
+    """Evaluate a slate of fixtures and market odds."""
+    results = load_historical_results(results_path)
+    odds = pd.read_csv(odds_path)
+
+    destination = save_market_odds_slate_evaluation(
+        results=results,
+        odds=odds,
+        output_path=output_path,
+        minimum_edge=minimum_edge,
+        minimum_expected_value=minimum_expected_value,
+    )
+
+    evaluation = pd.read_csv(destination)
+
+    table = Table(title="Batch Market Edge Evaluation")
+    table.add_column("Match")
+    table.add_column("Decision", justify="right")
+    table.add_column("Best Outcome", justify="right")
+    table.add_column("Best Edge", justify="right")
+    table.add_column("Best EV", justify="right")
+
+    for row in evaluation.head(10).itertuples(index=False):
+        table.add_row(
+            f"{row.home_team} vs {row.away_team}",
+            str(row.decision),
+            str(row.best_outcome),
+            f"{float(row.best_edge):.3f}",
+            f"{float(row.best_expected_value):.3f}",
+        )
+
+    console.print(table)
+    console.print(f"[green]Batch market evaluation written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
