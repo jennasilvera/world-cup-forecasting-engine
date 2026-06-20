@@ -7,6 +7,7 @@ from wc_forecast.features.build_features import build_match_features
 from wc_forecast.models.classifier import (
     OUTCOME_ORDER,
     PREDICTION_COLUMNS,
+    calculate_recency_sample_weights,
     chronological_train_test_split,
     date_cutoff_train_test_split,
     run_logistic_backtest,
@@ -151,3 +152,29 @@ def test_run_logistic_backtest_supports_cutoff_date() -> None:
     assert pd.to_datetime(result.predictions["date"]).min() >= pd.Timestamp(
         "2022-11-24"
     )
+
+
+def test_calculate_recency_sample_weights_prioritizes_recent_matches() -> None:
+    weights = calculate_recency_sample_weights(
+        _sample_features(),
+        half_life_days=30.0,
+        reference_date="2022-12-18",
+    )
+
+    assert len(weights) == len(_sample_features())
+    assert weights.iloc[-1] > weights.iloc[0]
+    assert weights.mean() == pytest.approx(1.0)
+
+
+def test_run_logistic_backtest_supports_recency_weighted_training() -> None:
+    result = run_logistic_backtest(
+        _sample_features(),
+        cutoff_date="2022-11-24",
+        sample_weight_half_life_days=30.0,
+    )
+
+    metrics = dict(zip(result.metrics["metric"], result.metrics["value"], strict=True))
+
+    assert len(result.predictions) == 4
+    assert metrics["train_rows"] == 6
+    assert metrics["test_rows"] == 4

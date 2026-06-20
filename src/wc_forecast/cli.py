@@ -201,6 +201,16 @@ def backtest_logistic(
             help="Optional cutoff date. Train before this date and test on/after it.",
         ),
     ] = None,
+    sample_weight_half_life_days: Annotated[
+        float | None,
+        typer.Option(
+            "--sample-weight-half-life-days",
+            help=(
+                "Optional recency half-life in days for time-decayed training "
+                "weights."
+            ),
+        ),
+    ] = None,
 
 ) -> None:
     """Run a chronological logistic-regression backtest."""
@@ -210,6 +220,7 @@ def backtest_logistic(
         metrics_output_path=metrics_output,
         test_fraction=test_fraction,
         cutoff_date=cutoff_date,
+        sample_weight_half_life_days=sample_weight_half_life_days,
     )
 
     table = Table(title="Logistic Regression Backtest Metrics")
@@ -434,6 +445,16 @@ def forecast_fixtures_command(
             ),
         ),
     ] = None,
+    sample_weight_half_life_days: Annotated[
+        float | None,
+        typer.Option(
+            "--sample-weight-half-life-days",
+            help=(
+                "Optional recency half-life in days for time-decayed training "
+                "weights."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Forecast a slate of FIFA World Cup fixtures."""
     forecasts = save_fixture_forecasts_from_results(
@@ -443,6 +464,7 @@ def forecast_fixtures_command(
         output_path=output_path,
         train_cutoff_date=train_cutoff_date,
         rating_cutoff_date=rating_cutoff_date,
+        sample_weight_half_life_days=sample_weight_half_life_days,
     )
 
     table = Table(title="Fixture Forecasts")

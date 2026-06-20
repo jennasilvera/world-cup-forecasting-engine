@@ -96,6 +96,7 @@ def validate_fixture_slate(fixtures: pd.DataFrame) -> None:
 def train_model_before_cutoff(
     features: pd.DataFrame,
     train_cutoff_date: str,
+    sample_weight_half_life_days: float | None = None,
 ) -> Pipeline:
     """Train model using only rows before the forecast cutoff date."""
 
@@ -112,7 +113,10 @@ def train_model_before_cutoff(
     if training_features.empty:
         raise ValueError("No training rows found before train_cutoff_date.")
 
-    return train_logistic_regression(training_features)
+    return train_logistic_regression(
+        training_features,
+        sample_weight_half_life_days=sample_weight_half_life_days,
+    )
 
 
 def build_fixture_forecast_features(
@@ -186,12 +190,14 @@ def forecast_fixtures(
     features: pd.DataFrame,
     ratings: pd.DataFrame,
     train_cutoff_date: str,
+    sample_weight_half_life_days: float | None = None,
 ) -> pd.DataFrame:
     """Train before cutoff and forecast a fixture slate."""
 
     model = train_model_before_cutoff(
         features=features,
         train_cutoff_date=train_cutoff_date,
+        sample_weight_half_life_days=sample_weight_half_life_days,
     )
 
     fixture_features = build_fixture_forecast_features(
@@ -245,6 +251,7 @@ def save_fixture_forecasts(
     ratings_path: str | Path,
     output_path: str | Path,
     train_cutoff_date: str,
+    sample_weight_half_life_days: float | None = None,
 ) -> pd.DataFrame:
     """Load inputs, forecast fixtures, and save forecast CSV."""
 
@@ -257,6 +264,7 @@ def save_fixture_forecasts(
         features=features,
         ratings=ratings,
         train_cutoff_date=train_cutoff_date,
+        sample_weight_half_life_days=sample_weight_half_life_days,
     )
 
     destination = Path(output_path)
@@ -273,6 +281,7 @@ def save_fixture_forecasts_from_results(
     output_path: str | Path,
     train_cutoff_date: str,
     rating_cutoff_date: str | None = None,
+    sample_weight_half_life_days: float | None = None,
 ) -> pd.DataFrame:
     """Load inputs, build cutoff-safe ratings, forecast fixtures, and save CSV."""
 
@@ -291,6 +300,7 @@ def save_fixture_forecasts_from_results(
         features=features,
         ratings=ratings,
         train_cutoff_date=train_cutoff_date,
+        sample_weight_half_life_days=sample_weight_half_life_days,
     )
 
     destination = Path(output_path)

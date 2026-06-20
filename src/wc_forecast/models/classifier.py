@@ -18,6 +18,7 @@ from wc_forecast.features.build_features import (
 
 OUTCOME_ORDER = ["home_win", "draw", "away_win"]
 PREDICTION_COLUMNS = [f"prob_{outcome}" for outcome in OUTCOME_ORDER]
+DEFAULT_RECENCY_HALF_LIFE_DAYS = 1_460.0
 
 
 @dataclass(frozen=True)
@@ -26,6 +27,44 @@ class BacktestResult:
 
     predictions: pd.DataFrame
     metrics: pd.DataFrame
+
+
+def calculate_recency_sample_weights(
+    features: pd.DataFrame,
+    half_life_days: float = DEFAULT_RECENCY_HALF_LIFE_DAYS,
+    reference_date: str | pd.Timestamp | None = None,
+) -> pd.Series:
+    """Calculate exponential time-decay weights for historical matches."""
+
+    if half_life_days <= 0:
+        raise ValueError("half_life_days must be positive.")
+
+    dated_features = features.copy()
+    dated_features["date"] = pd.to_datetime(dated_features["date"], errors="raise")
+
+    if reference_date is None:
+        reference_timestamp = dated_features["date"].max()
+    else:
+        reference_timestamp = pd.to_datetime(reference_date, errors="raise")
+
+    age_days = (reference_timestamp - dated_features["date"]).dt.days.clip(lower=0)
+    weights = 0.5 ** (age_days / half_life_days)
+
+    if "tournament_weight" in dated_features.columns:
+        tournament_weights = pd.to_numeric(
+            dated_features["tournament_weight"],
+            errors="coerce",
+        ).fillna(1.0)
+        weights = weights * tournament_weights.clip(lower=0.01)
+
+    mean_weight = float(weights.mean())
+
+    if mean_weight <= 0:
+        raise ValueError("Sample weights have non-positive mean.")
+
+    normalized_weights = weights / mean_weight
+
+    return normalized_weights.astype(float)
 
 
 def chronological_train_test_split(
@@ -99,7 +138,10 @@ def _validate_training_outcomes(train_features: pd.DataFrame) -> None:
         )
 
 
-def train_logistic_regression(train_features: pd.DataFrame) -> Pipeline:
+def train_logistic_regression(
+    train_features: pd.DataFrame,
+    sample_weight_half_life_days: float | None = None,
+) -> Pipeline:
     """Train a multinomial logistic regression model on pre-match features."""
 
     validate_feature_table(train_features)
@@ -121,7 +163,18 @@ def train_logistic_regression(train_features: pd.DataFrame) -> Pipeline:
         ]
     )
 
-    model.fit(x_train, y_train)
+    if sample_weight_half_life_days is None:
+        model.fit(x_train, y_train)
+    else:
+        sample_weights = calculate_recency_sample_weights(
+            train_features,
+            half_life_days=sample_weight_half_life_days,
+        )
+        model.fit(
+            x_train,
+            y_train,
+            classifier__sample_weight=sample_weights,
+        )
 
     return model
 
@@ -220,6 +273,7 @@ def run_logistic_backtest(
     features: pd.DataFrame,
     test_fraction: float = 0.30,
     cutoff_date: str | None = None,
+    sample_weight_half_life_days: float | None = None,
 ) -> BacktestResult:
     """Run a chronological logistic-regression backtest."""
 
@@ -236,7 +290,10 @@ def run_logistic_backtest(
             cutoff_date=cutoff_date,
         )
 
-    model = train_logistic_regression(train)
+    model = train_logistic_regression(
+        train,
+        sample_weight_half_life_days=sample_weight_half_life_days,
+    )
     predictions = predict_probabilities(model, test)
     metrics = evaluate_predictions(
         predictions=predictions,
@@ -253,6 +310,7 @@ def save_logistic_backtest(
     metrics_output_path: str | Path,
     test_fraction: float = 0.30,
     cutoff_date: str | None = None,
+    sample_weight_half_life_days: float | None = None,
 ) -> BacktestResult:
     """Load features, run backtest, and save predictions and metrics."""
 
@@ -261,6 +319,7 @@ def save_logistic_backtest(
         features=features,
         test_fraction=test_fraction,
         cutoff_date=cutoff_date,
+        sample_weight_half_life_days=sample_weight_half_life_days,
     )
 
     predictions_destination = Path(predictions_output_path)
