@@ -33,6 +33,7 @@ from wc_forecast.reporting.match_report import (
 from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
+from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_FEATURES_PATH = Path("data/processed/features.csv")
@@ -51,6 +52,7 @@ DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
 DEFAULT_MARKET_ODDS_PATH = Path("data/sample/market_odds_sample.csv")
 DEFAULT_BATCH_MARKET_EDGE_PATH = Path("outputs/batch_market_edges.csv")
 DEFAULT_STRATEGY_POLICY_PATH = Path("outputs/strategy_policy_edges.csv")
+DEFAULT_STAKE_SIZING_PATH = Path("outputs/stake_sizing_edges.csv")
 DEFAULT_SETTLEMENT_RESULTS_PATH = Path("data/sample/settlement_results_sample.csv")
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
 DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("outputs/prediction_ledger_report.md")
@@ -1039,6 +1041,87 @@ def apply_strategy_policy_command(
 
     console.print(table)
     console.print(f"[green]Strategy policy output written to:[/green] {destination}")
+
+
+@app.command("size-stakes")
+def size_stakes_command(
+    strategy_policy_path: Annotated[
+        Path,
+        typer.Argument(help="Path to strategy policy CSV."),
+    ] = DEFAULT_STRATEGY_POLICY_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for stake sizing output CSV.",
+        ),
+    ] = DEFAULT_STAKE_SIZING_PATH,
+    bankroll: Annotated[
+        float,
+        typer.Option(
+            "--bankroll",
+            help="Bankroll used to convert fractions into stake amounts.",
+        ),
+    ] = 1000.0,
+    fractional_kelly: Annotated[
+        float,
+        typer.Option(
+            "--fractional-kelly",
+            help="Fraction of full Kelly to use.",
+        ),
+    ] = 0.25,
+    max_single_bet_fraction: Annotated[
+        float,
+        typer.Option(
+            "--max-single-bet-fraction",
+            help="Maximum stake fraction for one prediction.",
+        ),
+    ] = 0.02,
+    max_portfolio_exposure_fraction: Annotated[
+        float,
+        typer.Option(
+            "--max-portfolio-exposure-fraction",
+            help="Maximum total stake fraction across the slate.",
+        ),
+    ] = 0.05,
+) -> None:
+    """Apply fractional Kelly stake sizing to actionable edges."""
+    policy = StakeSizingPolicy(
+        bankroll=bankroll,
+        fractional_kelly=fractional_kelly,
+        max_single_bet_fraction=max_single_bet_fraction,
+        max_portfolio_exposure_fraction=max_portfolio_exposure_fraction,
+    )
+
+    destination = save_stake_sizing_output(
+        strategy_policy_path=strategy_policy_path,
+        output_path=output_path,
+        policy=policy,
+    )
+
+    stake_output = pd.read_csv(destination)
+
+    table = Table(title="Stake Sizing Decisions")
+    table.add_column("Match")
+    table.add_column("Action", justify="right")
+    table.add_column("Outcome", justify="right")
+    table.add_column("Stake %", justify="right")
+    table.add_column("Stake Amount", justify="right")
+    table.add_column("Reason")
+
+    for row in stake_output.head(10).itertuples(index=False):
+        table.add_row(
+            f"{row.home_team} vs {row.away_team}",
+            str(row.strategy_action),
+            str(row.best_outcome),
+            f"{float(row.suggested_stake_fraction) * 100:.2f}%",
+            f"{float(row.suggested_stake_amount):.2f}",
+            str(row.stake_sizing_reason),
+        )
+
+    console.print(table)
+    console.print(f"[green]Stake sizing output written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
