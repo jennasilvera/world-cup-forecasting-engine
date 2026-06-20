@@ -3,6 +3,9 @@ RESULTS = data/sample/historical_results_sample.csv
 HOME_TEAM = Argentina
 AWAY_TEAM = France
 N_SIMULATIONS = 500
+HOME_ODDS = 2.20
+DRAW_ODDS = 3.40
+AWAY_ODDS = 3.50
 
 .PHONY: install lint test check health ingest build-elo build-features backtest report-backtest poisson report-match simulate-group-stage report-group-stage demo clean
 
@@ -42,13 +45,16 @@ poisson:
 report-match:
 	$(PYTHON) -m wc_forecast report-match $(HOME_TEAM) $(AWAY_TEAM)
 
+market-edge:
+	$(PYTHON) -m wc_forecast evaluate-market $(HOME_TEAM) $(AWAY_TEAM) --home-odds $(HOME_ODDS) --draw-odds $(DRAW_ODDS) --away-odds $(AWAY_ODDS)
+
 simulate-group-stage:
 	$(PYTHON) -m wc_forecast simulate-group-stage --n-simulations $(N_SIMULATIONS)
 
 report-group-stage:
 	$(PYTHON) -m wc_forecast report-group-stage
 
-demo: ingest build-elo build-features backtest report-backtest poisson report-match simulate-group-stage report-group-stage
+demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge simulate-group-stage report-group-stage
 	@echo "Demo pipeline complete."
 
 clean:
