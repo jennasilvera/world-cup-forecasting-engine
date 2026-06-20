@@ -1,0 +1,11 @@
+date,home_team,away_team,home_score,away_score,tournament,city,country,neutral
+2022-11-20,Qatar,Ecuador,0,2,FIFA World Cup,Al Khor,Qatar,False
+2022-11-21,England,Iran,6,2,FIFA World Cup,Al Rayyan,Qatar,True
+2022-11-21,United States,Wales,1,1,FIFA World Cup,Al Rayyan,Qatar,True
+2022-11-22,Argentina,Saudi Arabia,1,2,FIFA World Cup,Lusail,Qatar,True
+2022-11-22,Mexico,Poland,0,0,FIFA World Cup,Doha,Qatar,True
+2022-11-23,Spain,Costa Rica,7,0,FIFA World Cup,Doha,Qatar,True
+2022-11-24,Brazil,Serbia,2,0,FIFA World Cup,Lusail,Qatar,True
+2022-11-25,Netherlands,Ecuador,1,1,FIFA World Cup,Doha,Qatar,True
+2022-12-03,Netherlands,United States,3,1,FIFA World Cup,Khalifa,Qatar,True
+2022-12-18,Argentina,France,3,3,FIFA World Cup,Lusail,Qatar,True

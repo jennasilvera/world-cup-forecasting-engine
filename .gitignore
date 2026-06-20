@@ -24,3 +24,7 @@ reports/*.pdf
 .ipynb_checkpoints/
 
 *.egg-info/
+
+# Commit tiny reproducible sample data, but keep raw/processed local.
+!data/sample/
+!data/sample/*.csv
