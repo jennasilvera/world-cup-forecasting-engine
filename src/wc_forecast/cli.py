@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated
 
+import pandas as pd
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -11,9 +12,16 @@ from wc_forecast.data.ingest_results import load_historical_results, save_proces
 from wc_forecast.features.build_features import save_match_features
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
+from wc_forecast.models.market import (
+    calculate_market_edge,
+    calculate_market_probabilities,
+)
 from wc_forecast.models.poisson import PoissonGoalsModel, save_poisson_prediction
 from wc_forecast.reporting.group_stage_report import save_group_stage_report
-from wc_forecast.reporting.match_report import save_match_prediction_report
+from wc_forecast.reporting.match_report import (
+    generate_match_prediction,
+    save_match_prediction_report,
+)
 from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 
@@ -30,6 +38,7 @@ DEFAULT_MATCH_REPORT_PATH = Path("reports/match_prediction_report.md")
 DEFAULT_GROUP_FIXTURES_PATH = Path("data/sample/group_stage_fixtures_sample.csv")
 DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
 DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_report.md")
+DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -434,6 +443,146 @@ def report_group_stage(
     )
 
     console.print(f"[green]Group-stage report written to:[/green] {destination}")
+
+
+@app.command("evaluate-market")
+def evaluate_market(
+    home_team: Annotated[
+        str,
+        typer.Argument(help="Home/team A name."),
+    ],
+    away_team: Annotated[
+        str,
+        typer.Argument(help="Away/team B name."),
+    ],
+    home_odds: Annotated[
+        float,
+        typer.Option(
+            "--home-odds",
+            help="Decimal odds for home/team A win.",
+        ),
+    ],
+    draw_odds: Annotated[
+        float,
+        typer.Option(
+            "--draw-odds",
+            help="Decimal odds for draw.",
+        ),
+    ],
+    away_odds: Annotated[
+        float,
+        typer.Option(
+            "--away-odds",
+            help="Decimal odds for away/team B win.",
+        ),
+    ],
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results-path",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for market edge evaluation CSV.",
+        ),
+    ] = DEFAULT_MARKET_EDGE_PATH,
+    minimum_edge: Annotated[
+        float,
+        typer.Option(
+            "--minimum-edge",
+            help="Minimum model-vs-market probability edge.",
+        ),
+    ] = 0.03,
+    minimum_expected_value: Annotated[
+        float,
+        typer.Option(
+            "--minimum-expected-value",
+            help="Minimum expected value threshold.",
+        ),
+    ] = 0.02,
+) -> None:
+    """Compare ensemble probabilities against market odds."""
+    results = load_historical_results(results_path)
+    prediction = generate_match_prediction(
+        results=results,
+        home_team=home_team,
+        away_team=away_team,
+    )
+
+    market = calculate_market_probabilities(
+        home_win_odds=home_odds,
+        draw_odds=draw_odds,
+        away_win_odds=away_odds,
+    )
+    edge = calculate_market_edge(
+        model_prob_home_win=float(prediction["ensemble_prob_home_win"]),
+        model_prob_draw=float(prediction["ensemble_prob_draw"]),
+        model_prob_away_win=float(prediction["ensemble_prob_away_win"]),
+        home_win_odds=home_odds,
+        draw_odds=draw_odds,
+        away_win_odds=away_odds,
+        minimum_edge=minimum_edge,
+        minimum_expected_value=minimum_expected_value,
+    )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    pd.DataFrame(
+        [
+            {
+                "home_team": home_team,
+                "away_team": away_team,
+                "home_odds": home_odds,
+                "draw_odds": draw_odds,
+                "away_odds": away_odds,
+                "market_overround": market.overround,
+                "market_fair_home_win": market.fair_home_win,
+                "market_fair_draw": market.fair_draw,
+                "market_fair_away_win": market.fair_away_win,
+                "model_prob_home_win": prediction["ensemble_prob_home_win"],
+                "model_prob_draw": prediction["ensemble_prob_draw"],
+                "model_prob_away_win": prediction["ensemble_prob_away_win"],
+                "edge_home_win": edge.edge_home_win,
+                "edge_draw": edge.edge_draw,
+                "edge_away_win": edge.edge_away_win,
+                "expected_value_home_win": edge.expected_value_home_win,
+                "expected_value_draw": edge.expected_value_draw,
+                "expected_value_away_win": edge.expected_value_away_win,
+                "best_outcome": edge.best_outcome,
+                "best_edge": edge.best_edge,
+                "best_expected_value": edge.best_expected_value,
+                "decision": edge.decision,
+            }
+        ]
+    ).to_csv(output_path, index=False)
+
+    table = Table(title="Market Edge Evaluation")
+    table.add_column("Field")
+    table.add_column("Value", justify="right")
+
+    model_home_probability = float(prediction["ensemble_prob_home_win"])
+    model_draw_probability = float(prediction["ensemble_prob_draw"])
+    model_away_probability = float(prediction["ensemble_prob_away_win"])
+
+    table.add_row("Match", f"{home_team} vs {away_team}")
+    table.add_row("Market overround", f"{market.overround:.3f}")
+    table.add_row("Model home win probability", f"{model_home_probability:.3f}")
+    table.add_row("Market fair home win probability", f"{market.fair_home_win:.3f}")
+    table.add_row("Model draw probability", f"{model_draw_probability:.3f}")
+    table.add_row("Market fair draw probability", f"{market.fair_draw:.3f}")
+    table.add_row("Model away win probability", f"{model_away_probability:.3f}")
+    table.add_row("Market fair away win probability", f"{market.fair_away_win:.3f}")
+    table.add_row("Best outcome", edge.best_outcome)
+    table.add_row("Best edge", f"{edge.best_edge:.3f}")
+    table.add_row("Best expected value", f"{edge.best_expected_value:.3f}")
+    table.add_row("Decision", edge.decision)
+
+    console.print(table)
+    console.print(f"[green]Market edge evaluation written to:[/green] {output_path}")
 
 
 if __name__ == "__main__":
