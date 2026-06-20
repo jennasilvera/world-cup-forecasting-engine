@@ -5,7 +5,11 @@ from pathlib import Path
 import pandas as pd
 
 from wc_forecast.data.ingest_results import load_historical_results
-from wc_forecast.features.build_features import FEATURE_COLUMNS, build_match_features
+from wc_forecast.features.build_features import (
+    FEATURE_COLUMNS,
+    build_match_features,
+    ensure_model_feature_columns,
+)
 from wc_forecast.models.classifier import OUTCOME_ORDER, train_logistic_regression
 from wc_forecast.models.elo import EloModel, match_importance_weight
 from wc_forecast.models.ensemble import combine_match_prediction
@@ -88,6 +92,8 @@ def generate_match_prediction(
         tournament=tournament,
         neutral=neutral,
     )
+
+    current_features = ensure_model_feature_columns(current_features)
 
     raw_probabilities = classifier.predict_proba(current_features[FEATURE_COLUMNS])[0]
     classifier_probabilities = {outcome: 0.0 for outcome in OUTCOME_ORDER}

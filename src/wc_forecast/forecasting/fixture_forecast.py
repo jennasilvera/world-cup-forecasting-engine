@@ -5,7 +5,11 @@ from pathlib import Path
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
-from wc_forecast.features.build_features import FEATURE_COLUMNS
+from wc_forecast.features.build_features import (
+    FEATURE_COLUMNS,
+    TeamFormTracker,
+    feature_default_value,
+)
 from wc_forecast.models.classifier import (
     PREDICTION_COLUMNS,
     train_logistic_regression,
@@ -49,6 +53,39 @@ FORECAST_OUTPUT_COLUMNS = [
     "predicted_winner",
     "model_confidence",
 ]
+
+
+def build_form_lookup_before_cutoff(
+    results: pd.DataFrame,
+    form_cutoff_date: str,
+) -> dict[str, dict[str, float]]:
+    """Build current rolling form lookup using result rows before cutoff."""
+
+    cutoff = pd.to_datetime(form_cutoff_date, errors="raise")
+
+    historical_results = results.copy()
+    historical_results["date"] = pd.to_datetime(
+        historical_results["date"],
+        errors="raise",
+    )
+    historical_results = historical_results[historical_results["date"] < cutoff].copy()
+    historical_results = historical_results.sort_values(
+        ["date", "home_team", "away_team"]
+    )
+
+    tracker = TeamFormTracker()
+
+    for row in historical_results.itertuples(index=False):
+        tracker.update_match(
+            home_team=str(row.home_team),
+            away_team=str(row.away_team),
+            home_score=int(row.home_score),
+            away_score=int(row.away_score),
+        )
+
+    teams = set(historical_results["home_team"]) | set(historical_results["away_team"])
+
+    return {str(team): tracker.team_summary(str(team)) for team in teams}
 
 
 def build_ratings_before_cutoff(
@@ -124,6 +161,7 @@ def train_model_before_cutoff(
 def build_fixture_forecast_features(
     fixtures: pd.DataFrame,
     ratings: pd.DataFrame,
+    form_lookup: dict[str, dict[str, float]] | None = None,
 ) -> pd.DataFrame:
     """Create model feature rows for unplayed fixtures."""
 
@@ -134,6 +172,7 @@ def build_fixture_forecast_features(
     fixture_features["neutral"] = fixture_features["neutral"].map(_coerce_bool)
 
     ratings_lookup = _ratings_lookup(ratings)
+    form_lookup = form_lookup or {}
 
     rows: list[dict[str, object]] = []
 
@@ -146,6 +185,18 @@ def build_fixture_forecast_features(
         away_expected = 1.0 - home_expected
 
         feature_values = _empty_feature_values()
+        _set_form_feature_values(
+            feature_values=feature_values,
+            team=str(fixture.home_team),
+            prefix="home",
+            form_lookup=form_lookup,
+        )
+        _set_form_feature_values(
+            feature_values=feature_values,
+            team=str(fixture.away_team),
+            prefix="away",
+            form_lookup=form_lookup,
+        )
         _set_feature_value(feature_values, "home_elo", home_rating)
         _set_feature_value(feature_values, "away_elo", away_rating)
         _set_feature_value(feature_values, "elo_diff", home_rating - away_rating)
@@ -194,6 +245,7 @@ def forecast_fixtures(
     train_cutoff_date: str,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    form_lookup: dict[str, dict[str, float]] | None = None,
 ) -> pd.DataFrame:
     """Train before cutoff and forecast a fixture slate."""
 
@@ -207,6 +259,7 @@ def forecast_fixtures(
     fixture_features = build_fixture_forecast_features(
         fixtures=fixtures,
         ratings=ratings,
+        form_lookup=form_lookup,
     )
 
     probabilities = _predict_fixture_probabilities(
@@ -301,6 +354,10 @@ def save_fixture_forecasts_from_results(
         results=results,
         rating_cutoff_date=effective_rating_cutoff,
     )
+    form_lookup = build_form_lookup_before_cutoff(
+        results=results,
+        form_cutoff_date=effective_rating_cutoff,
+    )
 
     forecasts = forecast_fixtures(
         fixtures=fixtures,
@@ -309,6 +366,7 @@ def save_fixture_forecasts_from_results(
         train_cutoff_date=train_cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        form_lookup=form_lookup,
     )
 
     destination = Path(output_path)
@@ -416,7 +474,7 @@ def _elo_expected_score(home_rating: float, away_rating: float) -> float:
 def _empty_feature_values() -> dict[str, float]:
     """Initialize all model features to zero."""
 
-    return {column: 0.0 for column in FEATURE_COLUMNS}
+    return {column: feature_default_value(column) for column in FEATURE_COLUMNS}
 
 
 def _set_feature_value(
@@ -429,6 +487,27 @@ def _set_feature_value(
     for column in FEATURE_COLUMNS:
         if token in column:
             feature_values[column] = value
+
+
+def _set_form_feature_values(
+    feature_values: dict[str, float],
+    team: str,
+    prefix: str,
+    form_lookup: dict[str, dict[str, float]],
+) -> None:
+    """Set rolling-form feature values for a fixture team."""
+
+    normalized_team = _normalize_team_name(team)
+    team_form = form_lookup.get(normalized_team, {})
+
+    for column in FEATURE_COLUMNS:
+        if not column.startswith(f"{prefix}_form_"):
+            continue
+
+        unprefixed_column = column.replace(f"{prefix}_", "", 1)
+        feature_values[column] = float(
+            team_form.get(unprefixed_column, feature_default_value(column))
+        )
 
 
 def _tournament_weight(tournament: str) -> float:

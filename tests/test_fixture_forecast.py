@@ -6,6 +6,7 @@ import pytest
 from wc_forecast.features.build_features import FEATURE_COLUMNS, build_match_features
 from wc_forecast.forecasting.fixture_forecast import (
     build_fixture_forecast_features,
+    build_form_lookup_before_cutoff,
     build_ratings_before_cutoff,
     forecast_fixtures,
     validate_fixture_slate,
@@ -213,3 +214,52 @@ def test_build_ratings_before_cutoff_rejects_empty_history() -> None:
             results=_sample_results(),
             rating_cutoff_date="1900-01-01",
         )
+
+
+def test_build_form_lookup_before_cutoff_tracks_recent_team_form() -> None:
+    lookup = build_form_lookup_before_cutoff(
+        results=_sample_results(),
+        form_cutoff_date="2022-11-25",
+    )
+
+    assert lookup["Brazil"]["form_5_points_per_match"] == pytest.approx(3.0)
+    assert lookup["Brazil"]["form_5_goal_diff_per_match"] == pytest.approx(2.0)
+
+
+def test_build_fixture_forecast_features_uses_form_lookup() -> None:
+    fixtures = pd.DataFrame(
+        {
+            "date": ["2026-06-20"],
+            "home_team": ["Brazil"],
+            "away_team": ["Spain"],
+            "tournament": ["FIFA World Cup"],
+            "neutral": [True],
+        }
+    )
+    form_lookup = {
+        "Brazil": {
+            "form_5_points_per_match": 3.0,
+            "form_5_goal_diff_per_match": 2.0,
+            "form_10_points_per_match": 3.0,
+            "form_10_goal_diff_per_match": 2.0,
+        },
+        "Spain": {
+            "form_5_points_per_match": 1.0,
+            "form_5_goal_diff_per_match": 0.0,
+            "form_10_points_per_match": 1.0,
+            "form_10_goal_diff_per_match": 0.0,
+        },
+    }
+
+    fixture_features = build_fixture_forecast_features(
+        fixtures=fixtures,
+        ratings=_sample_ratings(),
+        form_lookup=form_lookup,
+    )
+
+    assert fixture_features.loc[0, "home_form_5_points_per_match"] == pytest.approx(
+        3.0
+    )
+    assert fixture_features.loc[0, "home_form_5_goal_diff_per_match"] == pytest.approx(
+        2.0
+    )

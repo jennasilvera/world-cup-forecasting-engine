@@ -80,3 +80,44 @@ def test_validate_feature_table_rejects_missing_feature_column() -> None:
 
     with pytest.raises(ValueError, match="Feature table missing required columns"):
         validate_feature_table(features)
+
+
+def test_rolling_form_features_are_pre_match_and_leakage_safe() -> None:
+    results = pd.DataFrame(
+        {
+            "date": pd.to_datetime(
+                [
+                    "2022-01-01",
+                    "2022-01-10",
+                ]
+            ),
+            "home_team": ["Qatar", "Qatar"],
+            "away_team": ["Ecuador", "Iran"],
+            "home_score": [0, 1],
+            "away_score": [2, 0],
+            "tournament": ["Friendly", "Friendly"],
+            "city": ["Doha", "Doha"],
+            "country": ["Qatar", "Qatar"],
+            "neutral": [False, False],
+            "outcome": ["away_win", "home_win"],
+        }
+    )
+
+    features = build_match_features(results)
+
+    first_row = features.iloc[0]
+    second_row = features.iloc[1]
+
+    assert first_row["home_form_5_points_per_match"] == pytest.approx(1.0)
+    assert first_row["home_form_5_goal_diff_per_match"] == pytest.approx(0.0)
+
+    assert second_row["home_form_5_points_per_match"] == pytest.approx(0.0)
+    assert second_row["home_form_5_goal_diff_per_match"] == pytest.approx(-2.0)
+
+
+def test_validate_feature_table_requires_rolling_form_columns() -> None:
+    features = build_match_features(_sample_results())
+    features = features.drop(columns=["home_form_5_points_per_match"])
+
+    with pytest.raises(ValueError, match="Feature table missing required columns"):
+        validate_feature_table(features)
