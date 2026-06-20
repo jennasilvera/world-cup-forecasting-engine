@@ -37,6 +37,9 @@ The current version includes:
 - Chronological train/test backtest
 - Accuracy, log loss, and multiclass Brier score metrics
 - Markdown backtest report generation
+- Poisson expected-goals model
+- Scoreline probability forecasting
+- Analyst-style match prediction reports
 - Unit tests and linting
 
 ## Repository Structure
@@ -97,6 +100,21 @@ The project currently uses a layered modeling workflow.
 - Evaluates the model on later matches
 - Reports accuracy, log loss, and multiclass Brier score
 
+### 6. Poisson expected-goals model
+
+- Estimates team attack strength from historical goals scored
+- Estimates team defensive weakness from historical goals conceded
+- Produces expected goals for both teams
+- Converts expected goals into scoreline probabilities
+- Derives home win, draw, and away win probabilities from the score matrix
+
+### 7. Match prediction report
+
+- Combines logistic-regression probabilities with Poisson expected-goals output
+- Shows most likely scoreline
+- Compares disagreement between model layers
+- Adds caveats about sample size, limitations, and future features
+
 ## Leakage Prevention
 
 The feature table is built chronologically.
@@ -128,6 +146,8 @@ Run the full MVP pipeline:
     python -m wc_forecast build-features
     python -m wc_forecast backtest-logistic
     python -m wc_forecast report-backtest
+    python -m wc_forecast predict-poisson Argentina France
+    python -m wc_forecast report-match Argentina France
 
 Run tests and linting:
 
@@ -142,6 +162,8 @@ Run tests and linting:
     python -m wc_forecast build-features
     python -m wc_forecast backtest-logistic
     python -m wc_forecast report-backtest
+    python -m wc_forecast predict-poisson Argentina France
+    python -m wc_forecast report-match Argentina France
 
 ## Example Outputs
 
@@ -161,6 +183,9 @@ The backtest report includes:
 - Metric summary
 - Recent match-level predictions
 - Probability estimates
+- Expected-goals estimates
+- Most likely scoreline
+- Model layer comparison
 - Model inputs
 - Leakage controls
 - Current limitations
@@ -178,7 +203,7 @@ Current limitations:
 - Limited feature set
 - No injury or lineup data yet
 - No market-implied odds yet
-- No Poisson expected-goals model yet
+- Poisson model is still a transparent baseline
 - No calibrated ensemble yet
 - No tournament simulation yet
 
@@ -190,7 +215,6 @@ Next planned additions:
 - Rolling form features
 - Strength-of-schedule features
 - FIFA ranking features
-- Poisson expected-goals model
 - Calibrated ensemble model
 - Reliability/calibration plots
 - Monte Carlo tournament simulator

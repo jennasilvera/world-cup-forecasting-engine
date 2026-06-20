@@ -44,3 +44,5 @@ jobs:
           python -m wc_forecast build-features
           python -m wc_forecast backtest-logistic
           python -m wc_forecast report-backtest
+          python -m wc_forecast predict-poisson Argentina France
+          python -m wc_forecast report-match Argentina France
