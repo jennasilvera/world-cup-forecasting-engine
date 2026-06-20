@@ -36,6 +36,11 @@ from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
 from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
+from wc_forecast.validation.logistic_tuning import (
+    DEFAULT_HALF_LIFE_DAYS_GRID,
+    DEFAULT_LOGISTIC_C_GRID,
+    save_logistic_tuning,
+)
 from wc_forecast.validation.rolling_backtest import (
     DEFAULT_MODEL_TYPES,
     DEFAULT_ROLLING_CUTOFF_DATES,
@@ -176,6 +181,100 @@ def build_features(
 
 
 DEFAULT_ROLLING_BACKTEST_METRICS_PATH = Path("outputs/rolling_backtest_metrics.csv")
+DEFAULT_LOGISTIC_TUNING_PATH = Path("outputs/logistic_tuning_results.csv")
+
+
+@app.command("tune-logistic")
+def tune_logistic_command(
+    features_path: Annotated[
+        Path,
+        typer.Argument(help="Path to model-ready feature table CSV."),
+    ] = DEFAULT_FEATURES_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for logistic tuning results CSV.",
+        ),
+    ] = DEFAULT_LOGISTIC_TUNING_PATH,
+    half_life_days_csv: Annotated[
+        str,
+        typer.Option(
+            "--half-life-days",
+            help="Comma-separated recency half-life values to test.",
+        ),
+    ] = ",".join(str(int(value)) for value in DEFAULT_HALF_LIFE_DAYS_GRID),
+    logistic_c_csv: Annotated[
+        str,
+        typer.Option(
+            "--logistic-c",
+            help="Comma-separated logistic C values to test.",
+        ),
+    ] = ",".join(str(value) for value in DEFAULT_LOGISTIC_C_GRID),
+    cutoff_dates_csv: Annotated[
+        str,
+        typer.Option(
+            "--cutoff-dates",
+            help="Comma-separated historical cutoff dates.",
+        ),
+    ] = ",".join(DEFAULT_ROLLING_CUTOFF_DATES),
+    evaluation_window_days: Annotated[
+        int,
+        typer.Option(
+            "--evaluation-window-days",
+            help="Number of days after each cutoff to evaluate.",
+        ),
+    ] = 365,
+) -> None:
+    """Tune logistic model hyperparameters using rolling validation."""
+
+    half_life_days_grid = [
+        float(value.strip())
+        for value in half_life_days_csv.split(",")
+        if value.strip()
+    ]
+    logistic_c_grid = [
+        float(value.strip())
+        for value in logistic_c_csv.split(",")
+        if value.strip()
+    ]
+    cutoff_dates = [
+        cutoff.strip()
+        for cutoff in cutoff_dates_csv.split(",")
+        if cutoff.strip()
+    ]
+
+    result = save_logistic_tuning(
+        features_path=features_path,
+        output_path=output_path,
+        half_life_days_grid=half_life_days_grid,
+        logistic_c_grid=logistic_c_grid,
+        cutoff_dates=cutoff_dates,
+        evaluation_window_days=evaluation_window_days,
+    )
+
+    table = Table(title="Logistic Hyperparameter Tuning")
+    table.add_column("Half-Life Days", justify="right")
+    table.add_column("C", justify="right")
+    table.add_column("Folds", justify="right")
+    table.add_column("Accuracy", justify="right")
+    table.add_column("Log Loss", justify="right")
+    table.add_column("Brier", justify="right")
+
+    for row in result.head(10).itertuples(index=False):
+        table.add_row(
+            f"{row.sample_weight_half_life_days:.0f}",
+            f"{row.logistic_c:.2f}",
+            str(row.folds),
+            f"{row.mean_accuracy:.4f}",
+            f"{row.mean_log_loss:.4f}",
+            f"{row.mean_brier:.4f}",
+        )
+
+    console.print(table)
+    console.print(f"Logistic tuning results written to: {output_path}")
+
 
 @app.command("rolling-backtest")
 def rolling_backtest_command(

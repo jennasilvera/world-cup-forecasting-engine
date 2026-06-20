@@ -31,11 +31,15 @@ class BacktestResult:
     metrics: pd.DataFrame
 
 
-def _make_classifier(model_type: str) -> object:
+def _make_classifier(model_type: str, logistic_c: float = 1.0) -> object:
     """Create a supported classification model."""
 
     if model_type == "logistic":
+        if logistic_c <= 0:
+            raise ValueError("logistic_c must be positive.")
+
         return LogisticRegression(
+            C=logistic_c,
             max_iter=1_000,
             random_state=42,
         )
@@ -178,6 +182,7 @@ def train_logistic_regression(
     train_features: pd.DataFrame,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    logistic_c: float = 1.0,
 ) -> Pipeline:
     """Train a supported three-class football outcome model."""
 
@@ -190,7 +195,7 @@ def train_logistic_regression(
     model = Pipeline(
         steps=[
             ("scaler", StandardScaler()),
-            ("classifier", _make_classifier(model_type)),
+            ("classifier", _make_classifier(model_type, logistic_c=logistic_c)),
         ]
     )
 
@@ -306,6 +311,7 @@ def run_logistic_backtest(
     cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    logistic_c: float = 1.0,
 ) -> BacktestResult:
     """Run a chronological logistic-regression backtest."""
 
@@ -326,6 +332,7 @@ def run_logistic_backtest(
         train,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
     )
     predictions = predict_probabilities(model, test)
     metrics = evaluate_predictions(
@@ -345,6 +352,7 @@ def save_logistic_backtest(
     cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    logistic_c: float = 1.0,
 ) -> BacktestResult:
     """Load features, run backtest, and save predictions and metrics."""
 
@@ -355,6 +363,7 @@ def save_logistic_backtest(
         cutoff_date=cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
     )
 
     predictions_destination = Path(predictions_output_path)

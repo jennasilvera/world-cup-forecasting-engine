@@ -54,6 +54,7 @@ def run_rolling_backtest(
     model_types: list[str] | None = None,
     evaluation_window_days: int = 365,
     sample_weight_half_life_days: float | None = None,
+    logistic_c: float = 1.0,
 ) -> pd.DataFrame:
     """Run rolling-origin backtests across multiple historical cutoffs."""
 
@@ -91,6 +92,7 @@ def run_rolling_backtest(
                 train,
                 sample_weight_half_life_days=sample_weight_half_life_days,
                 model_type=model_type,
+                logistic_c=logistic_c,
             )
 
             probabilities = _predict_aligned_probabilities(model, test)
@@ -134,6 +136,7 @@ def save_rolling_backtest(
     model_types: list[str] | None = None,
     evaluation_window_days: int = 365,
     sample_weight_half_life_days: float | None = None,
+    logistic_c: float = 1.0,
 ) -> pd.DataFrame:
     """Load features, run rolling backtest, and save metrics CSV."""
 
@@ -144,6 +147,7 @@ def save_rolling_backtest(
         model_types=model_types,
         evaluation_window_days=evaluation_window_days,
         sample_weight_half_life_days=sample_weight_half_life_days,
+        logistic_c=logistic_c,
     )
 
     destination = Path(output_path)

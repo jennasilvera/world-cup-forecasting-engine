@@ -198,3 +198,24 @@ def test_run_logistic_backtest_rejects_unknown_model_type() -> None:
             cutoff_date="2022-11-24",
             model_type="not_a_model",
         )
+
+
+def test_run_logistic_backtest_supports_logistic_regularization_strength() -> None:
+    result = run_logistic_backtest(
+        _sample_features(),
+        cutoff_date="2022-11-24",
+        model_type="logistic",
+        logistic_c=0.5,
+    )
+
+    assert len(result.predictions) == 4
+
+
+def test_run_logistic_backtest_rejects_invalid_logistic_c() -> None:
+    with pytest.raises(ValueError, match="logistic_c must be positive"):
+        run_logistic_backtest(
+            _sample_features(),
+            cutoff_date="2022-11-24",
+            model_type="logistic",
+            logistic_c=0.0,
+        )
