@@ -10,6 +10,7 @@ from wc_forecast.models.classifier import (
     PREDICTION_COLUMNS,
     train_logistic_regression,
 )
+from wc_forecast.models.elo import EloModel
 
 REQUIRED_FIXTURE_COLUMNS = [
     "date",
@@ -48,6 +49,30 @@ FORECAST_OUTPUT_COLUMNS = [
     "predicted_winner",
     "model_confidence",
 ]
+
+
+def build_ratings_before_cutoff(
+    results: pd.DataFrame,
+    rating_cutoff_date: str,
+) -> pd.DataFrame:
+    """Build Elo ratings using only matches before the rating cutoff date."""
+
+    cutoff = pd.to_datetime(rating_cutoff_date, errors="raise")
+
+    historical_results = results.copy()
+    historical_results["date"] = pd.to_datetime(
+        historical_results["date"],
+        errors="raise",
+    )
+    historical_results = historical_results[historical_results["date"] < cutoff].copy()
+
+    if historical_results.empty:
+        raise ValueError("No historical result rows found before rating_cutoff_date.")
+
+    model = EloModel()
+    model.fit(historical_results)
+
+    return model.ratings_table()
 
 
 def validate_fixture_slate(fixtures: pd.DataFrame) -> None:
@@ -226,6 +251,40 @@ def save_fixture_forecasts(
     fixtures = pd.read_csv(fixtures_path)
     features = pd.read_csv(features_path)
     ratings = pd.read_csv(ratings_path)
+
+    forecasts = forecast_fixtures(
+        fixtures=fixtures,
+        features=features,
+        ratings=ratings,
+        train_cutoff_date=train_cutoff_date,
+    )
+
+    destination = Path(output_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    forecasts.to_csv(destination, index=False)
+
+    return forecasts
+
+
+def save_fixture_forecasts_from_results(
+    fixtures_path: str | Path,
+    features_path: str | Path,
+    results_path: str | Path,
+    output_path: str | Path,
+    train_cutoff_date: str,
+    rating_cutoff_date: str | None = None,
+) -> pd.DataFrame:
+    """Load inputs, build cutoff-safe ratings, forecast fixtures, and save CSV."""
+
+    fixtures = pd.read_csv(fixtures_path)
+    features = pd.read_csv(features_path)
+    results = pd.read_csv(results_path)
+
+    effective_rating_cutoff = rating_cutoff_date or train_cutoff_date
+    ratings = build_ratings_before_cutoff(
+        results=results,
+        rating_cutoff_date=effective_rating_cutoff,
+    )
 
     forecasts = forecast_fixtures(
         fixtures=fixtures,

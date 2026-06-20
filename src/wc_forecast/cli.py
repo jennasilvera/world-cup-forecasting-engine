@@ -11,7 +11,7 @@ from rich.table import Table
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.data_sources.international_results import save_normalized_international_results
 from wc_forecast.features.build_features import save_match_features
-from wc_forecast.forecasting.fixture_forecast import save_fixture_forecasts
+from wc_forecast.forecasting.fixture_forecast import save_fixture_forecasts_from_results
 from wc_forecast.ledger.prediction_ledger import (
     append_candidate_edges_to_prediction_ledger,
     save_market_prediction_to_ledger,
@@ -402,13 +402,13 @@ def forecast_fixtures_command(
             help="Path to model-ready historical feature table CSV.",
         ),
     ] = DEFAULT_FEATURES_PATH,
-    ratings_path: Annotated[
+    results_path: Annotated[
         Path,
         typer.Option(
-            "--ratings-path",
-            help="Path to latest Elo ratings CSV.",
+            "--results-path",
+            help="Path to processed historical results CSV used to build ratings.",
         ),
-    ] = DEFAULT_ELO_RATINGS_PATH,
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
     output_path: Annotated[
         Path,
         typer.Option(
@@ -424,14 +424,25 @@ def forecast_fixtures_command(
             help="Train only on historical feature rows before this date.",
         ),
     ] = "2026-01-01",
+    rating_cutoff_date: Annotated[
+        str | None,
+        typer.Option(
+            "--rating-cutoff-date",
+            help=(
+                "Build Elo ratings only from result rows before this date. "
+                "Defaults to train cutoff date."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Forecast a slate of FIFA World Cup fixtures."""
-    forecasts = save_fixture_forecasts(
+    forecasts = save_fixture_forecasts_from_results(
         fixtures_path=fixtures_path,
         features_path=features_path,
-        ratings_path=ratings_path,
+        results_path=results_path,
         output_path=output_path,
         train_cutoff_date=train_cutoff_date,
+        rating_cutoff_date=rating_cutoff_date,
     )
 
     table = Table(title="Fixture Forecasts")

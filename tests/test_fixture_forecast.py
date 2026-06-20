@@ -6,6 +6,7 @@ import pytest
 from wc_forecast.features.build_features import FEATURE_COLUMNS, build_match_features
 from wc_forecast.forecasting.fixture_forecast import (
     build_fixture_forecast_features,
+    build_ratings_before_cutoff,
     forecast_fixtures,
     validate_fixture_slate,
 )
@@ -193,3 +194,22 @@ def test_build_fixture_forecast_features_warns_on_unknown_team_rating() -> None:
     assert fixture_features.loc[0, "away_elo_rating"] == pytest.approx(1500.0)
     assert fixture_features.loc[0, "away_rating_source"] == "fallback_1500"
     assert fixture_features.loc[0, "rating_warning"] == "fallback_rating_used:Atlantis"
+
+
+def test_build_ratings_before_cutoff_excludes_future_matches() -> None:
+    results = _sample_results()
+    ratings = build_ratings_before_cutoff(
+        results=results,
+        rating_cutoff_date="2022-11-24",
+    )
+
+    assert not ratings.empty
+    assert "Brazil" not in set(ratings["team"])
+
+
+def test_build_ratings_before_cutoff_rejects_empty_history() -> None:
+    with pytest.raises(ValueError, match="No historical result rows"):
+        build_ratings_before_cutoff(
+            results=_sample_results(),
+            rating_cutoff_date="1900-01-01",
+        )
