@@ -77,6 +77,9 @@ Key generated and maintained project documents:
 - [Match Prediction Report](reports/match_prediction_report.md)
 - [Group-Stage Simulation Report](reports/group_stage_simulation_report.md)
 - [Model Card](reports/model_card.md)
+- [Real Forecasting Agent Roadmap](docs/real_forecasting_agent_roadmap.md)
+- [Data Source Registry](docs/data_source_registry.md)
+- [Betting Evaluation Framework](docs/betting_evaluation_framework.md)
 - [Assumptions and Limitations](reports/assumptions.md)
 
 ## Repository Structure

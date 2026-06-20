@@ -27,6 +27,24 @@ It also produces:
 
 The system is intended as a portfolio project demonstrating quantitative modeling, ML engineering, backtesting, leakage prevention, and reporting practices.
 
+## Long-Term Forecasting-Agent Direction
+
+The current repository is a reproducible modeling scaffold.
+
+The long-term goal is to evolve it into a real pre-match forecasting agent with:
+
+- richer legal data sources
+- timestamped feature generation
+- market-implied probability comparison
+- prediction ledger storage
+- calibration reports
+- closing-line value analysis
+- expected value calculations
+- no-edge decision logic
+- tournament advancement and championship simulations
+
+Betting-oriented use requires a much larger historical dataset, strict leakage controls, and out-of-sample validation against market baselines.
+
 ## Not Intended For
 
 This project is not intended for:
