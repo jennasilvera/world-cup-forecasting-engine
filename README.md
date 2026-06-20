@@ -42,6 +42,8 @@ The current version includes:
 - Analyst-style match prediction reports
 - Lightweight ensemble forecast layer
 - Forecast entropy and model-disagreement signals
+- Monte Carlo group-stage simulation
+- Group advancement probability outputs
 - Unit tests and linting
 
 ## Repository Structure
@@ -126,6 +128,15 @@ The project currently uses a layered modeling workflow.
 - Calculates maximum model disagreement across outcome classes
 - Treats model-layer disagreement as an uncertainty signal
 
+### 9. Monte Carlo group-stage simulation
+
+- Loads group-stage fixture definitions from CSV
+- Uses the Poisson expected-goals model to sample match scorelines
+- Simulates group standings repeatedly
+- Applies points, goal difference, and goals-for ranking logic
+- Estimates each team's probability of advancing from the group
+- Outputs average points, average goal difference, and average goals for
+
 ## Leakage Prevention
 
 The feature table is built chronologically.
@@ -159,6 +170,7 @@ Run the full MVP pipeline:
     python -m wc_forecast report-backtest
     python -m wc_forecast predict-poisson Argentina France
     python -m wc_forecast report-match Argentina France
+    python -m wc_forecast simulate-group-stage --n-simulations 1000
 
 Run tests and linting:
 
@@ -175,6 +187,7 @@ Run tests and linting:
     python -m wc_forecast report-backtest
     python -m wc_forecast predict-poisson Argentina France
     python -m wc_forecast report-match Argentina France
+    python -m wc_forecast simulate-group-stage --n-simulations 1000
 
 ## Example Outputs
 
@@ -218,7 +231,7 @@ Current limitations:
 - No market-implied odds yet
 - Poisson model is still a transparent baseline
 - Current ensemble is a transparent weighted-average baseline, not yet calibrated
-- No tournament simulation yet
+- Group-stage simulation exists; knockout simulation is not implemented yet
 
 ## Planned Upgrades
 
@@ -230,7 +243,7 @@ Next planned additions:
 - FIFA ranking features
 - Calibrated ensemble model with validation-based weights
 - Reliability/calibration plots
-- Monte Carlo tournament simulator
+- Knockout-stage Monte Carlo simulator
 - Group-stage and knockout advancement probabilities
 - FastAPI prediction service
 - Streamlit or React dashboard
