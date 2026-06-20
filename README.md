@@ -44,6 +44,7 @@ The current version includes:
 - Forecast entropy and model-disagreement signals
 - Monte Carlo group-stage simulation
 - Group advancement probability outputs
+- Markdown group-stage simulation report
 - Unit tests and linting
 
 ## Documentation and Reports
@@ -181,6 +182,7 @@ Run the full MVP pipeline:
     python -m wc_forecast predict-poisson Argentina France
     python -m wc_forecast report-match Argentina France
     python -m wc_forecast simulate-group-stage --n-simulations 1000
+    python -m wc_forecast report-group-stage
 
 Run tests and linting:
 

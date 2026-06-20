@@ -47,3 +47,4 @@ jobs:
           python -m wc_forecast predict-poisson Argentina France
           python -m wc_forecast report-match Argentina France
           python -m wc_forecast simulate-group-stage --n-simulations 100
+          python -m wc_forecast report-group-stage
