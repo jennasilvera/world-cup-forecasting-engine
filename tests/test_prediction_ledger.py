@@ -4,8 +4,10 @@ import pandas as pd
 
 from wc_forecast.ledger.prediction_ledger import (
     LEDGER_COLUMNS,
+    append_candidate_edges_to_prediction_ledger,
     append_prediction_ledger_row,
     build_prediction_ledger_row,
+    build_prediction_ledger_row_from_batch_edge,
     match_outcome_from_score,
     realized_return_for_prediction,
     save_market_prediction_to_ledger,
@@ -229,3 +231,71 @@ def test_settle_prediction_ledger_row_updates_result(tmp_path) -> None:
     assert settled.loc[0, "final_outcome"] == "draw"
     assert settled.loc[0, "realized_return"] == 2.40
     assert settled.loc[0, "closing_draw_odds"] == 3.25
+
+
+def _sample_batch_edges() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "home_team": ["Argentina", "Brazil"],
+            "away_team": ["France", "Spain"],
+            "tournament": ["FIFA World Cup", "FIFA World Cup"],
+            "kickoff_timestamp": [
+                "2026-06-20T19:00:00+00:00",
+                "2026-06-21T19:00:00+00:00",
+            ],
+            "home_odds": [2.20, 2.60],
+            "draw_odds": [3.40, 3.30],
+            "away_odds": [3.50, 2.80],
+            "market_overround": [1.03, 1.04],
+            "model_prob_home_win": [0.18, 0.17],
+            "model_prob_draw": [0.53, 0.74],
+            "model_prob_away_win": [0.29, 0.09],
+            "market_fair_home_win": [0.44, 0.37],
+            "market_fair_draw": [0.28, 0.29],
+            "market_fair_away_win": [0.28, 0.34],
+            "edge_home_win": [-0.26, -0.20],
+            "edge_draw": [0.25, 0.45],
+            "edge_away_win": [0.01, -0.25],
+            "expected_value_home_win": [-0.60, -0.56],
+            "expected_value_draw": [0.81, 1.43],
+            "expected_value_away_win": [0.00, -0.73],
+            "best_outcome": ["draw", "draw"],
+            "best_edge": [0.25, 0.45],
+            "best_expected_value": [0.81, 1.43],
+            "decision": ["candidate_edge", "candidate_edge"],
+            "ensemble_confidence": ["Medium", "High"],
+            "ensemble_entropy": [0.91, 0.68],
+            "max_model_disagreement": [0.78, 0.11],
+        }
+    )
+
+
+def test_build_prediction_ledger_row_from_batch_edge() -> None:
+    row = build_prediction_ledger_row_from_batch_edge(
+        edge_row=_sample_batch_edges().iloc[0],
+        prediction_timestamp="2026-06-19T12:00:00+00:00",
+    )
+
+    assert row["home_team"] == "Argentina"
+    assert row["best_outcome"] == "draw"
+    assert row["decision"] == "candidate_edge"
+    assert set(LEDGER_COLUMNS).issubset(row)
+
+
+def test_append_candidate_edges_to_prediction_ledger(tmp_path) -> None:
+    batch_edges_path = tmp_path / "batch_market_edges.csv"
+    ledger_path = tmp_path / "prediction_ledger.csv"
+
+    _sample_batch_edges().to_csv(batch_edges_path, index=False)
+
+    destination = append_candidate_edges_to_prediction_ledger(
+        batch_edges_path=batch_edges_path,
+        ledger_path=ledger_path,
+        prediction_timestamp="2026-06-19T12:00:00+00:00",
+    )
+
+    saved = pd.read_csv(destination)
+
+    assert destination.exists()
+    assert len(saved) == 2
+    assert set(saved["decision"]) == {"candidate_edge"}

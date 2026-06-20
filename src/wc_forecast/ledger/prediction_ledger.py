@@ -318,3 +318,104 @@ def settle_prediction_ledger_row(
     ledger.to_csv(path, index=False)
 
     return path
+
+
+def build_prediction_ledger_row_from_batch_edge(
+    edge_row: pd.Series,
+    model_version: str = "demo-v1",
+    feature_version: str = "demo-features-v1",
+    prediction_timestamp: str | None = None,
+    notes: str = "",
+) -> dict[str, object]:
+    """Build one prediction ledger row from a batch market edge row."""
+
+    return {
+        "prediction_id": str(uuid4()),
+        "model_version": model_version,
+        "feature_version": feature_version,
+        "prediction_timestamp": prediction_timestamp or utc_now_iso(),
+        "kickoff_timestamp": edge_row.get("kickoff_timestamp", ""),
+        "home_team": edge_row["home_team"],
+        "away_team": edge_row["away_team"],
+        "tournament": edge_row["tournament"],
+        "model_prob_home_win": edge_row["model_prob_home_win"],
+        "model_prob_draw": edge_row["model_prob_draw"],
+        "model_prob_away_win": edge_row["model_prob_away_win"],
+        "market_fair_home_win": edge_row["market_fair_home_win"],
+        "market_fair_draw": edge_row["market_fair_draw"],
+        "market_fair_away_win": edge_row["market_fair_away_win"],
+        "home_odds": edge_row["home_odds"],
+        "draw_odds": edge_row["draw_odds"],
+        "away_odds": edge_row["away_odds"],
+        "market_overround": edge_row["market_overround"],
+        "edge_home_win": edge_row["edge_home_win"],
+        "edge_draw": edge_row["edge_draw"],
+        "edge_away_win": edge_row["edge_away_win"],
+        "expected_value_home_win": edge_row["expected_value_home_win"],
+        "expected_value_draw": edge_row["expected_value_draw"],
+        "expected_value_away_win": edge_row["expected_value_away_win"],
+        "best_outcome": edge_row["best_outcome"],
+        "best_edge": edge_row["best_edge"],
+        "best_expected_value": edge_row["best_expected_value"],
+        "decision": edge_row["decision"],
+        "ensemble_confidence": edge_row["ensemble_confidence"],
+        "ensemble_entropy": edge_row["ensemble_entropy"],
+        "max_model_disagreement": edge_row["max_model_disagreement"],
+        "closing_home_odds": "",
+        "closing_draw_odds": "",
+        "closing_away_odds": "",
+        "final_home_score": "",
+        "final_away_score": "",
+        "final_outcome": "",
+        "realized_return": "",
+        "notes": notes,
+    }
+
+
+def append_candidate_edges_to_prediction_ledger(
+    batch_edges_path: str | Path,
+    ledger_path: str | Path,
+    model_version: str = "demo-v1",
+    feature_version: str = "demo-features-v1",
+    prediction_timestamp: str | None = None,
+    notes: str = "",
+) -> Path:
+    """Append all candidate edges from a batch market edge file to the ledger."""
+
+    batch_edges = pd.read_csv(batch_edges_path, keep_default_na=False)
+
+    if "decision" not in batch_edges.columns:
+        raise ValueError("Batch market edge file missing decision column.")
+
+    candidate_edges = batch_edges[batch_edges["decision"] == "candidate_edge"].copy()
+
+    destination = Path(ledger_path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    if candidate_edges.empty:
+        if not destination.exists():
+            pd.DataFrame(columns=LEDGER_COLUMNS).to_csv(destination, index=False)
+        return destination
+
+    rows = [
+        build_prediction_ledger_row_from_batch_edge(
+            edge_row=row,
+            model_version=model_version,
+            feature_version=feature_version,
+            prediction_timestamp=prediction_timestamp,
+            notes=notes,
+        )
+        for _, row in candidate_edges.iterrows()
+    ]
+
+    new_rows = pd.DataFrame(rows, columns=LEDGER_COLUMNS)
+
+    if destination.exists() and destination.stat().st_size > 0:
+        existing = pd.read_csv(destination, keep_default_na=False, dtype=object)
+        ledger = pd.concat([existing, new_rows], ignore_index=True)
+    else:
+        ledger = new_rows
+
+    ledger.to_csv(destination, index=False)
+
+    return destination

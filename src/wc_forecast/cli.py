@@ -11,6 +11,7 @@ from rich.table import Table
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.features.build_features import save_match_features
 from wc_forecast.ledger.prediction_ledger import (
+    append_candidate_edges_to_prediction_ledger,
     save_market_prediction_to_ledger,
     settle_prediction_ledger_row,
 )
@@ -861,6 +862,61 @@ def batch_evaluate_market(
 
     console.print(table)
     console.print(f"[green]Batch market evaluation written to:[/green] {destination}")
+
+
+@app.command("log-batch-predictions")
+def log_batch_predictions(
+    batch_edges_path: Annotated[
+        Path,
+        typer.Argument(help="Path to batch market edge CSV."),
+    ] = DEFAULT_BATCH_MARKET_EDGE_PATH,
+    ledger_path: Annotated[
+        Path,
+        typer.Option(
+            "--ledger-path",
+            help="Path to prediction ledger CSV.",
+        ),
+    ] = DEFAULT_PREDICTION_LEDGER_PATH,
+    model_version: Annotated[
+        str,
+        typer.Option(
+            "--model-version",
+            help="Model version label for audit tracking.",
+        ),
+    ] = "demo-v1",
+    feature_version: Annotated[
+        str,
+        typer.Option(
+            "--feature-version",
+            help="Feature version label for audit tracking.",
+        ),
+    ] = "demo-features-v1",
+    prediction_timestamp: Annotated[
+        str | None,
+        typer.Option(
+            "--prediction-timestamp",
+            help="Optional prediction timestamp. Defaults to current UTC time.",
+        ),
+    ] = None,
+    notes: Annotated[
+        str,
+        typer.Option(
+            "--notes",
+            help="Optional audit notes.",
+        ),
+    ] = "",
+) -> None:
+    """Append candidate edges from a batch market evaluation to the ledger."""
+    destination = append_candidate_edges_to_prediction_ledger(
+        batch_edges_path=batch_edges_path,
+        ledger_path=ledger_path,
+        model_version=model_version,
+        feature_version=feature_version,
+        prediction_timestamp=prediction_timestamp,
+        notes=notes,
+    )
+
+    console.print(f"[green]Batch predictions logged to ledger:[/green] {destination}")
 
 
 if __name__ == "__main__":
