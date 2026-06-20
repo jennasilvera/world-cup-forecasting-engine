@@ -72,3 +72,32 @@ def test_save_prediction_ledger_report_writes_markdown(tmp_path) -> None:
 
     assert destination.exists()
     assert "Prediction Ledger Performance Report" in report_path.read_text()
+
+
+def test_summarize_prediction_ledger_includes_stake_weighted_metrics() -> None:
+    ledger = _sample_ledger()
+    ledger["suggested_stake_amount"] = [20.0, 10.0]
+
+    summary = summarize_prediction_ledger(ledger)
+
+    assert "stake_weighted_return" in summary
+    assert "stake_weighted_roi" in summary
+    assert "total_suggested_exposure" in summary
+    assert "average_suggested_stake" in summary
+    assert summary["total_suggested_exposure"] > 0
+
+
+def test_render_prediction_ledger_report_includes_stake_weighted_metrics() -> None:
+    ledger = _sample_ledger()
+    ledger["suggested_stake_amount"] = [20.0, 10.0]
+
+    report = render_prediction_ledger_report(ledger)
+
+    assert "Stake-weighted return" in report
+    assert "Stake-weighted ROI" in report
+    assert "Total suggested exposure" in report
+    assert "Average suggested stake" in report
+    expected_header = (
+        "| Prediction ID | Match | Decision | Pick | Final | Stake | Return | EV | Edge |"
+    )
+    assert expected_header in report
