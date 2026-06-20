@@ -110,9 +110,13 @@ def test_rolling_form_features_are_pre_match_and_leakage_safe() -> None:
 
     assert first_row["home_form_5_points_per_match"] == pytest.approx(1.0)
     assert first_row["home_form_5_goal_diff_per_match"] == pytest.approx(0.0)
+    assert first_row["home_form_5_goals_for_per_match"] == pytest.approx(1.0)
+    assert first_row["home_form_5_goals_against_per_match"] == pytest.approx(1.0)
 
     assert second_row["home_form_5_points_per_match"] == pytest.approx(0.0)
     assert second_row["home_form_5_goal_diff_per_match"] == pytest.approx(-2.0)
+    assert second_row["home_form_5_goals_for_per_match"] == pytest.approx(0.0)
+    assert second_row["home_form_5_goals_against_per_match"] == pytest.approx(2.0)
 
 
 def test_validate_feature_table_requires_rolling_form_columns() -> None:

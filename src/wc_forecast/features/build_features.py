@@ -22,10 +22,18 @@ FEATURE_COLUMNS = [
     "away_form_5_points_per_match",
     "home_form_5_goal_diff_per_match",
     "away_form_5_goal_diff_per_match",
+    "home_form_5_goals_for_per_match",
+    "away_form_5_goals_for_per_match",
+    "home_form_5_goals_against_per_match",
+    "away_form_5_goals_against_per_match",
     "home_form_10_points_per_match",
     "away_form_10_points_per_match",
     "home_form_10_goal_diff_per_match",
     "away_form_10_goal_diff_per_match",
+    "home_form_10_goals_for_per_match",
+    "away_form_10_goals_for_per_match",
+    "home_form_10_goals_against_per_match",
+    "away_form_10_goals_against_per_match",
 ]
 
 TARGET_COLUMN = "outcome"
@@ -40,6 +48,8 @@ RESULT_COLUMNS = [
 FORM_WINDOWS = (5, 10)
 DEFAULT_POINTS_PER_MATCH = 1.0
 DEFAULT_GOAL_DIFF_PER_MATCH = 0.0
+DEFAULT_GOALS_FOR_PER_MATCH = 1.0
+DEFAULT_GOALS_AGAINST_PER_MATCH = 1.0
 
 
 class TeamFormTracker:
@@ -52,6 +62,12 @@ class TeamFormTracker:
             lambda: deque(maxlen=self.max_window)
         )
         self._team_goal_diffs: defaultdict[str, deque[float]] = defaultdict(
+            lambda: deque(maxlen=self.max_window)
+        )
+        self._team_goals_for: defaultdict[str, deque[float]] = defaultdict(
+            lambda: deque(maxlen=self.max_window)
+        )
+        self._team_goals_against: defaultdict[str, deque[float]] = defaultdict(
             lambda: deque(maxlen=self.max_window)
         )
 
@@ -69,6 +85,12 @@ class TeamFormTracker:
             features[f"{prefix}_form_{window}_goal_diff_per_match"] = team_summary[
                 f"form_{window}_goal_diff_per_match"
             ]
+            features[f"{prefix}_form_{window}_goals_for_per_match"] = team_summary[
+                f"form_{window}_goals_for_per_match"
+            ]
+            features[f"{prefix}_form_{window}_goals_against_per_match"] = team_summary[
+                f"form_{window}_goals_against_per_match"
+            ]
 
         return features
 
@@ -78,12 +100,16 @@ class TeamFormTracker:
         team_name = str(team)
         points_history = list(self._team_points[team_name])
         goal_diff_history = list(self._team_goal_diffs[team_name])
+        goals_for_history = list(self._team_goals_for[team_name])
+        goals_against_history = list(self._team_goals_against[team_name])
 
         summary: dict[str, float] = {}
 
         for window in self.windows:
             recent_points = points_history[-window:]
             recent_goal_diffs = goal_diff_history[-window:]
+            recent_goals_for = goals_for_history[-window:]
+            recent_goals_against = goals_against_history[-window:]
 
             summary[f"form_{window}_points_per_match"] = _average_or_default(
                 recent_points,
@@ -92,6 +118,14 @@ class TeamFormTracker:
             summary[f"form_{window}_goal_diff_per_match"] = _average_or_default(
                 recent_goal_diffs,
                 DEFAULT_GOAL_DIFF_PER_MATCH,
+            )
+            summary[f"form_{window}_goals_for_per_match"] = _average_or_default(
+                recent_goals_for,
+                DEFAULT_GOALS_FOR_PER_MATCH,
+            )
+            summary[f"form_{window}_goals_against_per_match"] = _average_or_default(
+                recent_goals_against,
+                DEFAULT_GOALS_AGAINST_PER_MATCH,
             )
 
         return summary
@@ -122,6 +156,10 @@ class TeamFormTracker:
         self._team_points[str(away_team)].append(away_points)
         self._team_goal_diffs[str(home_team)].append(home_goal_diff)
         self._team_goal_diffs[str(away_team)].append(away_goal_diff)
+        self._team_goals_for[str(home_team)].append(float(home_score))
+        self._team_goals_for[str(away_team)].append(float(away_score))
+        self._team_goals_against[str(home_team)].append(float(away_score))
+        self._team_goals_against[str(away_team)].append(float(home_score))
 
 
 def _average_or_default(values: list[float], default: float) -> float:
@@ -141,6 +179,12 @@ def feature_default_value(column: str) -> float:
 
     if column.endswith("_goal_diff_per_match"):
         return DEFAULT_GOAL_DIFF_PER_MATCH
+
+    if column.endswith("_goals_for_per_match"):
+        return DEFAULT_GOALS_FOR_PER_MATCH
+
+    if column.endswith("_goals_against_per_match"):
+        return DEFAULT_GOALS_AGAINST_PER_MATCH
 
     return 0.0
 

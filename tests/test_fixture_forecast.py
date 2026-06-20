@@ -240,14 +240,22 @@ def test_build_fixture_forecast_features_uses_form_lookup() -> None:
         "Brazil": {
             "form_5_points_per_match": 3.0,
             "form_5_goal_diff_per_match": 2.0,
+            "form_5_goals_for_per_match": 3.0,
+            "form_5_goals_against_per_match": 1.0,
             "form_10_points_per_match": 3.0,
             "form_10_goal_diff_per_match": 2.0,
+            "form_10_goals_for_per_match": 3.0,
+            "form_10_goals_against_per_match": 1.0,
         },
         "Spain": {
             "form_5_points_per_match": 1.0,
             "form_5_goal_diff_per_match": 0.0,
+            "form_5_goals_for_per_match": 1.0,
+            "form_5_goals_against_per_match": 1.0,
             "form_10_points_per_match": 1.0,
             "form_10_goal_diff_per_match": 0.0,
+            "form_10_goals_for_per_match": 1.0,
+            "form_10_goals_against_per_match": 1.0,
         },
     }
 
@@ -262,6 +270,12 @@ def test_build_fixture_forecast_features_uses_form_lookup() -> None:
     )
     assert fixture_features.loc[0, "home_form_5_goal_diff_per_match"] == pytest.approx(
         2.0
+    )
+    assert fixture_features.loc[0, "home_form_5_goals_for_per_match"] == pytest.approx(
+        3.0
+    )
+    assert fixture_features.loc[0, "home_form_5_goals_against_per_match"] == pytest.approx(
+        1.0
     )
 
 
