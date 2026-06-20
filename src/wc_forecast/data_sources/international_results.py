@@ -42,11 +42,12 @@ def validate_international_results_source(results: pd.DataFrame) -> None:
 
 
 def normalize_international_results(results: pd.DataFrame) -> pd.DataFrame:
-    """Normalize international match results into the engine schema."""
+    """Normalize completed international match results into the engine schema."""
 
-    validate_international_results_source(results)
+    completed_results = _completed_matches_only(results)
+    validate_international_results_source(completed_results)
 
-    normalized = results[SOURCE_RESULTS_COLUMNS].copy()
+    normalized = completed_results[SOURCE_RESULTS_COLUMNS].copy()
 
     normalized["date"] = pd.to_datetime(normalized["date"], errors="raise").dt.date
     normalized["date"] = normalized["date"].astype(str)
@@ -87,6 +88,24 @@ def save_normalized_international_results(
     normalized.to_csv(destination, index=False)
 
     return destination
+
+
+def _completed_matches_only(results: pd.DataFrame) -> pd.DataFrame:
+    """Keep only matches with completed scorelines."""
+
+    missing_columns = sorted(SUPPORTED_SOURCE_COLUMNS - set(results.columns))
+
+    if missing_columns:
+        raise ValueError(
+            f"International results source missing columns: {missing_columns}"
+        )
+
+    completed = results.dropna(subset=["home_score", "away_score"]).copy()
+
+    if completed.empty:
+        raise ValueError("International results source contains no completed matches.")
+
+    return completed
 
 
 def _match_outcome(row: pd.Series) -> str:

@@ -88,3 +88,30 @@ def test_normalize_international_results_adds_away_win_outcome() -> None:
     normalized = normalize_international_results(source)
 
     assert normalized.loc[0, "outcome"] == "away_win"
+
+
+def test_normalize_international_results_drops_incomplete_matches() -> None:
+    source = pd.concat(
+        [
+            _sample_source(),
+            pd.DataFrame(
+                {
+                    "date": ["2026-06-11"],
+                    "home_team": ["Mexico"],
+                    "away_team": ["South Africa"],
+                    "home_score": [None],
+                    "away_score": [None],
+                    "tournament": ["FIFA World Cup"],
+                    "city": ["Mexico City"],
+                    "country": ["Mexico"],
+                    "neutral": [False],
+                }
+            ),
+        ],
+        ignore_index=True,
+    )
+
+    normalized = normalize_international_results(source)
+
+    assert len(normalized) == 2
+    assert "Mexico" not in set(normalized["home_team"])
