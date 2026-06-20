@@ -22,6 +22,7 @@ from wc_forecast.models.market import (
 )
 from wc_forecast.models.poisson import PoissonGoalsModel, save_poisson_prediction
 from wc_forecast.reporting.group_stage_report import save_group_stage_report
+from wc_forecast.reporting.ledger_report import save_prediction_ledger_report
 from wc_forecast.reporting.match_report import (
     generate_match_prediction,
     save_match_prediction_report,
@@ -44,6 +45,7 @@ DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
 DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_report.md")
 DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
+DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("reports/prediction_ledger_report.md")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -759,6 +761,33 @@ def settle_prediction(
     )
 
     console.print(f"[green]Prediction ledger settled:[/green] {destination}")
+
+
+@app.command("report-ledger")
+def report_ledger(
+    ledger_path: Annotated[
+        Path,
+        typer.Option(
+            "--ledger-path",
+            help="Path to prediction ledger CSV.",
+        ),
+    ] = DEFAULT_PREDICTION_LEDGER_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for Markdown prediction ledger report.",
+        ),
+    ] = DEFAULT_PREDICTION_LEDGER_REPORT_PATH,
+) -> None:
+    """Generate a Markdown performance report from the prediction ledger."""
+    destination = save_prediction_ledger_report(
+        ledger_path=ledger_path,
+        output_path=output_path,
+    )
+
+    console.print(f"[green]Prediction ledger report written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
