@@ -46,6 +46,7 @@ The current version includes:
 - Group advancement probability outputs
 - Market-implied probability and expected value evaluation
 - Timestamped prediction ledger for forecast auditability
+- Ledger settlement with final score, closing odds, and realized return
 - Markdown group-stage simulation report
 - Unit tests and linting
 
@@ -66,6 +67,7 @@ This executes:
 - match prediction report generation
 - market edge and expected value evaluation
 - timestamped prediction ledger logging
+- prediction settlement and realized return calculation
 - Monte Carlo group-stage simulation
 - group-stage simulation report generation
 
@@ -212,6 +214,8 @@ Run the full MVP pipeline:
     python -m wc_forecast report-match Argentina France
     python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
     python -m wc_forecast log-prediction Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
+    PREDICTION_ID=$(tail -n 1 outputs/prediction_ledger.csv | cut -d',' -f1)
+    python -m wc_forecast settle-prediction "$PREDICTION_ID" --final-home-score 1 --final-away-score 1 --closing-home-odds 2.10 --closing-draw-odds 3.25 --closing-away-odds 3.60
     python -m wc_forecast simulate-group-stage --n-simulations 1000
     python -m wc_forecast report-group-stage
 
