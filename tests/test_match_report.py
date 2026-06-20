@@ -114,9 +114,17 @@ def test_generate_match_prediction_returns_probability_layers() -> None:
         + float(prediction["poisson_prob_away_win"])
     )
 
+    ensemble_sum = (
+        float(prediction["ensemble_prob_home_win"])
+        + float(prediction["ensemble_prob_draw"])
+        + float(prediction["ensemble_prob_away_win"])
+    )
+
     assert round(logistic_sum, 8) == 1.0
     assert round(poisson_sum, 8) == 1.0
+    assert round(ensemble_sum, 8) == 1.0
     assert "most_likely_score" in prediction
+    assert "ensemble_confidence" in prediction
 
 
 def test_render_match_prediction_report_contains_match_context() -> None:
@@ -131,6 +139,7 @@ def test_render_match_prediction_report_contains_match_context() -> None:
     assert "Match Prediction Report: Argentina vs France" in report
     assert "Logistic Regression Baseline" in report
     assert "Poisson Expected-Goals Forecast" in report
+    assert "Ensemble Forecast" in report
 
 
 def test_save_match_prediction_report_writes_outputs(tmp_path) -> None:

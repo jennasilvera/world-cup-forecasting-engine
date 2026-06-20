@@ -30,6 +30,21 @@ Model confidence: **High**
 | Most likely scoreline | 3-4 |
 | Scoreline probability | 4.3% |
 
+## Ensemble Forecast
+
+| Outcome | Probability |
+|---|---:|
+| Argentina win | 18.3% |
+| Draw | 53.1% |
+| France win | 28.6% |
+
+| Field | Value |
+|---|---:|
+| Predicted outcome | draw |
+| Ensemble confidence | Medium |
+| Normalized entropy | 0.915 |
+| Max model disagreement | 77.7% |
+
 ## Model Layer Comparison
 
 | Signal | Value |

@@ -8,6 +8,7 @@ from wc_forecast.data.ingest_results import load_historical_results
 from wc_forecast.features.build_features import FEATURE_COLUMNS, build_match_features
 from wc_forecast.models.classifier import OUTCOME_ORDER, train_logistic_regression
 from wc_forecast.models.elo import EloModel, match_importance_weight
+from wc_forecast.models.ensemble import combine_match_prediction
 from wc_forecast.models.poisson import PoissonGoalsModel
 
 
@@ -102,7 +103,7 @@ def generate_match_prediction(
         neutral=neutral,
     )
 
-    return {
+    prediction = {
         "home_team": home_team,
         "away_team": away_team,
         "tournament": tournament,
@@ -124,6 +125,22 @@ def generate_match_prediction(
             classifier_probabilities["home_win"] - poisson_prediction.prob_home_win
         ),
     }
+
+    ensemble = combine_match_prediction(prediction)
+
+    prediction.update(
+        {
+            "ensemble_prob_home_win": ensemble.prob_home_win,
+            "ensemble_prob_draw": ensemble.prob_draw,
+            "ensemble_prob_away_win": ensemble.prob_away_win,
+            "ensemble_predicted_outcome": ensemble.predicted_outcome,
+            "ensemble_confidence": ensemble.confidence,
+            "ensemble_entropy": ensemble.entropy,
+            "max_model_disagreement": ensemble.max_model_disagreement,
+        }
+    )
+
+    return prediction
 
 
 def prediction_to_frame(prediction: dict[str, object]) -> pd.DataFrame:
@@ -151,6 +168,13 @@ def render_match_prediction_report(prediction: dict[str, object]) -> str:
     )
     home_win_disagreement = _format_probability(
         float(prediction["home_win_model_disagreement"])
+    )
+    ensemble_home = float(prediction["ensemble_prob_home_win"])
+    ensemble_draw = float(prediction["ensemble_prob_draw"])
+    ensemble_away = float(prediction["ensemble_prob_away_win"])
+    ensemble_entropy = float(prediction["ensemble_entropy"])
+    max_disagreement = _format_probability(
+        float(prediction["max_model_disagreement"])
     )
 
     return f"""# Match Prediction Report: {home_team} vs {away_team}
@@ -184,6 +208,21 @@ Model confidence: **{prediction["logistic_confidence"]}**
 | {away_team} win probability | {_format_probability(poisson_away)} |
 | Most likely scoreline | {prediction["most_likely_score"]} |
 | Scoreline probability | {scoreline_probability} |
+
+## Ensemble Forecast
+
+| Outcome | Probability |
+|---|---:|
+| {home_team} win | {_format_probability(ensemble_home)} |
+| Draw | {_format_probability(ensemble_draw)} |
+| {away_team} win | {_format_probability(ensemble_away)} |
+
+| Field | Value |
+|---|---:|
+| Predicted outcome | {prediction["ensemble_predicted_outcome"]} |
+| Ensemble confidence | {prediction["ensemble_confidence"]} |
+| Normalized entropy | {ensemble_entropy:.3f} |
+| Max model disagreement | {max_disagreement} |
 
 ## Model Layer Comparison
 
