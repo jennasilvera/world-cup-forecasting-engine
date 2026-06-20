@@ -11,6 +11,7 @@ from wc_forecast.data.ingest_results import load_historical_results, save_proces
 from wc_forecast.features.build_features import save_match_features
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
+from wc_forecast.models.poisson import PoissonGoalsModel, save_poisson_prediction
 from wc_forecast.reporting.prediction_report import save_backtest_report
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
@@ -20,6 +21,7 @@ DEFAULT_ELO_HISTORY_PATH = Path("outputs/elo_history.csv")
 DEFAULT_LOGISTIC_PREDICTIONS_PATH = Path("outputs/logistic_backtest_predictions.csv")
 DEFAULT_LOGISTIC_METRICS_PATH = Path("outputs/logistic_backtest_metrics.csv")
 DEFAULT_BACKTEST_REPORT_PATH = Path("reports/logistic_backtest_report.md")
+DEFAULT_POISSON_PREDICTION_PATH = Path("outputs/poisson_prediction.csv")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -205,6 +207,78 @@ def report_backtest(
     )
 
     console.print(f"[green]Backtest report written to:[/green] {destination}")
+
+
+@app.command("predict-poisson")
+def predict_poisson(
+    home_team: Annotated[
+        str,
+        typer.Argument(help="Home/team A name."),
+    ],
+    away_team: Annotated[
+        str,
+        typer.Argument(help="Away/team B name."),
+    ],
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results-path",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for Poisson prediction CSV.",
+        ),
+    ] = DEFAULT_POISSON_PREDICTION_PATH,
+    neutral: Annotated[
+        bool,
+        typer.Option(
+            "--neutral/--not-neutral",
+            help="Whether the match is played at a neutral site.",
+        ),
+    ] = True,
+) -> None:
+    """Generate an expected-goals Poisson forecast for one match."""
+    results = load_historical_results(results_path)
+
+    model = PoissonGoalsModel()
+    model.fit(results)
+    prediction = model.predict_match(
+        home_team=home_team,
+        away_team=away_team,
+        neutral=neutral,
+    )
+
+    save_poisson_prediction(
+        results_path=results_path,
+        home_team=home_team,
+        away_team=away_team,
+        output_path=output_path,
+        neutral=neutral,
+    )
+
+    table = Table(title="Poisson Expected-Goals Forecast")
+    table.add_column("Field")
+    table.add_column("Value", justify="right")
+
+    table.add_row("Match", f"{home_team} vs {away_team}")
+    table.add_row("Expected home goals", f"{prediction.expected_home_goals:.3f}")
+    table.add_row("Expected away goals", f"{prediction.expected_away_goals:.3f}")
+    table.add_row("Home win probability", f"{prediction.prob_home_win:.3f}")
+    table.add_row("Draw probability", f"{prediction.prob_draw:.3f}")
+    table.add_row("Away win probability", f"{prediction.prob_away_win:.3f}")
+    table.add_row("Most likely score", prediction.most_likely_score)
+    table.add_row(
+        "Most likely score probability",
+        f"{prediction.most_likely_score_probability:.3f}",
+    )
+
+    console.print(table)
+    console.print(f"[green]Poisson prediction written to:[/green] {output_path}")
 
 
 if __name__ == "__main__":
