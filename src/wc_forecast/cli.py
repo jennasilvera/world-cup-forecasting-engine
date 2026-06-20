@@ -32,6 +32,7 @@ from wc_forecast.reporting.match_report import (
 )
 from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
+from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_FEATURES_PATH = Path("data/processed/features.csv")
@@ -49,6 +50,7 @@ DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_repo
 DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
 DEFAULT_MARKET_ODDS_PATH = Path("data/sample/market_odds_sample.csv")
 DEFAULT_BATCH_MARKET_EDGE_PATH = Path("outputs/batch_market_edges.csv")
+DEFAULT_STRATEGY_POLICY_PATH = Path("outputs/strategy_policy_edges.csv")
 DEFAULT_SETTLEMENT_RESULTS_PATH = Path("data/sample/settlement_results_sample.csv")
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
 DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("outputs/prediction_ledger_report.md")
@@ -950,6 +952,93 @@ def settle_batch_predictions(
     )
 
     console.print(f"[green]Batch predictions settled in ledger:[/green] {destination}")
+
+
+@app.command("apply-strategy-policy")
+def apply_strategy_policy_command(
+    batch_edges_path: Annotated[
+        Path,
+        typer.Argument(help="Path to batch market edge CSV."),
+    ] = DEFAULT_BATCH_MARKET_EDGE_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for strategy policy output CSV.",
+        ),
+    ] = DEFAULT_STRATEGY_POLICY_PATH,
+    minimum_edge: Annotated[
+        float,
+        typer.Option(
+            "--minimum-edge",
+            help="Minimum model-vs-market probability edge.",
+        ),
+    ] = 0.05,
+    minimum_expected_value: Annotated[
+        float,
+        typer.Option(
+            "--minimum-expected-value",
+            help="Minimum expected value.",
+        ),
+    ] = 0.05,
+    maximum_entropy: Annotated[
+        float,
+        typer.Option(
+            "--maximum-entropy",
+            help="Maximum ensemble entropy.",
+        ),
+    ] = 1.00,
+    maximum_model_disagreement: Annotated[
+        float,
+        typer.Option(
+            "--maximum-model-disagreement",
+            help="Maximum disagreement across model components.",
+        ),
+    ] = 0.50,
+    maximum_market_overround: Annotated[
+        float,
+        typer.Option(
+            "--maximum-market-overround",
+            help="Maximum allowed market overround.",
+        ),
+    ] = 1.08,
+) -> None:
+    """Apply strategy policy gates to ranked market edges."""
+    policy = StrategyPolicy(
+        minimum_edge=minimum_edge,
+        minimum_expected_value=minimum_expected_value,
+        maximum_entropy=maximum_entropy,
+        maximum_model_disagreement=maximum_model_disagreement,
+        maximum_market_overround=maximum_market_overround,
+    )
+
+    destination = save_strategy_policy_output(
+        batch_edges_path=batch_edges_path,
+        output_path=output_path,
+        policy=policy,
+    )
+
+    policy_output = pd.read_csv(destination)
+
+    table = Table(title="Strategy Policy Decisions")
+    table.add_column("Match")
+    table.add_column("Action", justify="right")
+    table.add_column("Best Outcome", justify="right")
+    table.add_column("Best EV", justify="right")
+    table.add_column("Reason")
+
+    for row in policy_output.head(10).itertuples(index=False):
+        table.add_row(
+            f"{row.home_team} vs {row.away_team}",
+            str(row.strategy_action),
+            str(row.best_outcome),
+            f"{float(row.best_expected_value):.3f}",
+            str(row.strategy_reason),
+        )
+
+    console.print(table)
+    console.print(f"[green]Strategy policy output written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
