@@ -40,6 +40,8 @@ The current version includes:
 - Poisson expected-goals model
 - Scoreline probability forecasting
 - Analyst-style match prediction reports
+- Lightweight ensemble forecast layer
+- Forecast entropy and model-disagreement signals
 - Unit tests and linting
 
 ## Repository Structure
@@ -115,6 +117,15 @@ The project currently uses a layered modeling workflow.
 - Compares disagreement between model layers
 - Adds caveats about sample size, limitations, and future features
 
+### 8. Ensemble forecast layer
+
+- Blends logistic-regression probabilities with Poisson probabilities
+- Produces a final home/draw/away probability forecast
+- Reports predicted outcome and confidence label
+- Calculates normalized probability entropy
+- Calculates maximum model disagreement across outcome classes
+- Treats model-layer disagreement as an uncertainty signal
+
 ## Leakage Prevention
 
 The feature table is built chronologically.
@@ -185,6 +196,8 @@ The backtest report includes:
 - Probability estimates
 - Expected-goals estimates
 - Most likely scoreline
+- Ensemble forecast
+- Probability entropy
 - Model layer comparison
 - Model inputs
 - Leakage controls
@@ -204,7 +217,7 @@ Current limitations:
 - No injury or lineup data yet
 - No market-implied odds yet
 - Poisson model is still a transparent baseline
-- No calibrated ensemble yet
+- Current ensemble is a transparent weighted-average baseline, not yet calibrated
 - No tournament simulation yet
 
 ## Planned Upgrades
@@ -215,7 +228,7 @@ Next planned additions:
 - Rolling form features
 - Strength-of-schedule features
 - FIFA ranking features
-- Calibrated ensemble model
+- Calibrated ensemble model with validation-based weights
 - Reliability/calibration plots
 - Monte Carlo tournament simulator
 - Group-stage and knockout advancement probabilities
