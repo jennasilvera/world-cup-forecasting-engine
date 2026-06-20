@@ -13,6 +13,7 @@ from wc_forecast.features.build_features import save_match_features
 from wc_forecast.ledger.prediction_ledger import (
     append_candidate_edges_to_prediction_ledger,
     save_market_prediction_to_ledger,
+    settle_prediction_ledger_from_results,
     settle_prediction_ledger_row,
 )
 from wc_forecast.models.batch_market import save_market_odds_slate_evaluation
@@ -48,6 +49,7 @@ DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_repo
 DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
 DEFAULT_MARKET_ODDS_PATH = Path("data/sample/market_odds_sample.csv")
 DEFAULT_BATCH_MARKET_EDGE_PATH = Path("outputs/batch_market_edges.csv")
+DEFAULT_SETTLEMENT_RESULTS_PATH = Path("data/sample/settlement_results_sample.csv")
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
 DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("outputs/prediction_ledger_report.md")
 
@@ -917,6 +919,37 @@ def log_batch_predictions(
     )
 
     console.print(f"[green]Batch predictions logged to ledger:[/green] {destination}")
+
+
+@app.command("settle-batch-predictions")
+def settle_batch_predictions(
+    settlement_results_path: Annotated[
+        Path,
+        typer.Argument(help="Path to settlement results CSV."),
+    ] = DEFAULT_SETTLEMENT_RESULTS_PATH,
+    ledger_path: Annotated[
+        Path,
+        typer.Option(
+            "--ledger-path",
+            help="Path to prediction ledger CSV.",
+        ),
+    ] = DEFAULT_PREDICTION_LEDGER_PATH,
+    stake: Annotated[
+        float,
+        typer.Option(
+            "--stake",
+            help="Flat stake used to calculate realized return.",
+        ),
+    ] = 1.0,
+) -> None:
+    """Settle matching ledger predictions from a results CSV."""
+    destination = settle_prediction_ledger_from_results(
+        ledger_path=ledger_path,
+        settlement_results_path=settlement_results_path,
+        stake=stake,
+    )
+
+    console.print(f"[green]Batch predictions settled in ledger:[/green] {destination}")
 
 
 if __name__ == "__main__":

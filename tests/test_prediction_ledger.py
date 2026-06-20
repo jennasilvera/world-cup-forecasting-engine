@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+import pytest
 
 from wc_forecast.ledger.prediction_ledger import (
     LEDGER_COLUMNS,
@@ -11,7 +12,9 @@ from wc_forecast.ledger.prediction_ledger import (
     match_outcome_from_score,
     realized_return_for_prediction,
     save_market_prediction_to_ledger,
+    settle_prediction_ledger_from_results,
     settle_prediction_ledger_row,
+    validate_settlement_results,
 )
 from wc_forecast.models.market import calculate_market_edge, calculate_market_probabilities
 
@@ -299,3 +302,57 @@ def test_append_candidate_edges_to_prediction_ledger(tmp_path) -> None:
     assert destination.exists()
     assert len(saved) == 2
     assert set(saved["decision"]) == {"candidate_edge"}
+
+
+def _sample_settlement_results() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "home_team": ["Argentina", "Brazil"],
+            "away_team": ["France", "Spain"],
+            "kickoff_timestamp": [
+                "2026-06-20T19:00:00+00:00",
+                "2026-06-21T19:00:00+00:00",
+            ],
+            "final_home_score": [1, 2],
+            "final_away_score": [1, 2],
+            "closing_home_odds": [2.10, 2.45],
+            "closing_draw_odds": [3.25, 3.10],
+            "closing_away_odds": [3.60, 3.00],
+        }
+    )
+
+
+def test_validate_settlement_results_rejects_missing_columns() -> None:
+    settlements = _sample_settlement_results().drop(columns=["final_home_score"])
+
+    with pytest.raises(ValueError, match="missing required columns"):
+        validate_settlement_results(settlements)
+
+
+def test_settle_prediction_ledger_from_results_updates_matching_rows(
+    tmp_path,
+) -> None:
+    batch_edges_path = tmp_path / "batch_market_edges.csv"
+    ledger_path = tmp_path / "prediction_ledger.csv"
+    settlement_path = tmp_path / "settlement_results.csv"
+
+    _sample_batch_edges().to_csv(batch_edges_path, index=False)
+    _sample_settlement_results().to_csv(settlement_path, index=False)
+
+    append_candidate_edges_to_prediction_ledger(
+        batch_edges_path=batch_edges_path,
+        ledger_path=ledger_path,
+        prediction_timestamp="2026-06-19T12:00:00+00:00",
+    )
+
+    destination = settle_prediction_ledger_from_results(
+        ledger_path=ledger_path,
+        settlement_results_path=settlement_path,
+    )
+
+    settled = pd.read_csv(destination)
+
+    assert len(settled) == 2
+    assert set(settled["final_outcome"]) == {"draw"}
+    assert set(settled["realized_return"]) == {2.40, 2.30}
+    assert set(settled["closing_draw_odds"]) == {3.25, 3.10}

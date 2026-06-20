@@ -419,3 +419,161 @@ def append_candidate_edges_to_prediction_ledger(
     ledger.to_csv(destination, index=False)
 
     return destination
+
+
+REQUIRED_SETTLEMENT_COLUMNS = [
+    "home_team",
+    "away_team",
+    "final_home_score",
+    "final_away_score",
+]
+
+
+def _ledger_has_value(value: object) -> bool:
+    """Return whether a ledger CSV value is meaningfully populated."""
+
+    return str(value).strip() != "" and str(value).strip().lower() != "nan"
+
+
+def _optional_float_from_row(row: pd.Series, column: str) -> float | None:
+    """Return an optional float from a settlement row."""
+
+    if column not in row:
+        return None
+
+    value = row[column]
+
+    if not _ledger_has_value(value):
+        return None
+
+    return float(value)
+
+
+def validate_settlement_results(settlements: pd.DataFrame) -> None:
+    """Validate batch settlement results input."""
+
+    missing_columns = sorted(set(REQUIRED_SETTLEMENT_COLUMNS) - set(settlements.columns))
+
+    if missing_columns:
+        raise ValueError(
+            f"Settlement results missing required columns: {missing_columns}"
+        )
+
+    if settlements.empty:
+        raise ValueError("Settlement results file is empty.")
+
+    for row_number, row in settlements.iterrows():
+        home_team = str(row["home_team"]).strip()
+        away_team = str(row["away_team"]).strip()
+
+        if not home_team:
+            raise ValueError(f"Row {row_number} has blank home_team.")
+
+        if not away_team:
+            raise ValueError(f"Row {row_number} has blank away_team.")
+
+        if home_team == away_team:
+            raise ValueError(f"Row {row_number} has identical teams: {home_team}.")
+
+        int(row["final_home_score"])
+        int(row["final_away_score"])
+
+
+def settle_prediction_ledger_from_results(
+    ledger_path: str | Path,
+    settlement_results_path: str | Path,
+    stake: float = 1.0,
+) -> Path:
+    """Settle all matching unsettled prediction ledger rows from a results CSV."""
+
+    path = Path(ledger_path)
+
+    if not path.exists():
+        raise FileNotFoundError(f"Prediction ledger not found: {path}")
+
+    if stake <= 0.0:
+        raise ValueError("stake must be positive.")
+
+    ledger = pd.read_csv(path, keep_default_na=False, dtype=object)
+
+    for column in LEDGER_COLUMNS:
+        if column not in ledger.columns:
+            ledger[column] = ""
+
+    settlements = pd.read_csv(
+        settlement_results_path,
+        keep_default_na=False,
+        dtype=object,
+    )
+    validate_settlement_results(settlements)
+
+    for _, settlement in settlements.iterrows():
+        home_team = str(settlement["home_team"]).strip()
+        away_team = str(settlement["away_team"]).strip()
+        kickoff_timestamp = str(settlement.get("kickoff_timestamp", "")).strip()
+
+        final_home_score = int(settlement["final_home_score"])
+        final_away_score = int(settlement["final_away_score"])
+        final_outcome = match_outcome_from_score(
+            home_score=final_home_score,
+            away_score=final_away_score,
+        )
+
+        matching_rows = (
+            (ledger["home_team"].astype(str).str.strip() == home_team)
+            & (ledger["away_team"].astype(str).str.strip() == away_team)
+            & ~ledger["final_outcome"].map(_ledger_has_value)
+        )
+
+        if kickoff_timestamp and "kickoff_timestamp" in ledger.columns:
+            kickoff_matches = (
+                ledger["kickoff_timestamp"].astype(str).str.strip()
+                == kickoff_timestamp
+            )
+            matching_rows = matching_rows & (
+                kickoff_matches
+                | ~ledger["kickoff_timestamp"].map(_ledger_has_value)
+            )
+
+        closing_home_odds = _optional_float_from_row(
+            row=settlement,
+            column="closing_home_odds",
+        )
+        closing_draw_odds = _optional_float_from_row(
+            row=settlement,
+            column="closing_draw_odds",
+        )
+        closing_away_odds = _optional_float_from_row(
+            row=settlement,
+            column="closing_away_odds",
+        )
+
+        for row_index in ledger.index[matching_rows]:
+            best_outcome = str(ledger.loc[row_index, "best_outcome"])
+
+            realized_return = realized_return_for_prediction(
+                best_outcome=best_outcome,
+                final_outcome=final_outcome,
+                home_odds=float(ledger.loc[row_index, "home_odds"]),
+                draw_odds=float(ledger.loc[row_index, "draw_odds"]),
+                away_odds=float(ledger.loc[row_index, "away_odds"]),
+                stake=stake,
+            )
+
+            ledger.loc[row_index, "final_home_score"] = final_home_score
+            ledger.loc[row_index, "final_away_score"] = final_away_score
+            ledger.loc[row_index, "final_outcome"] = final_outcome
+            ledger.loc[row_index, "realized_return"] = realized_return
+
+            if closing_home_odds is not None:
+                ledger.loc[row_index, "closing_home_odds"] = closing_home_odds
+
+            if closing_draw_odds is not None:
+                ledger.loc[row_index, "closing_draw_odds"] = closing_draw_odds
+
+            if closing_away_odds is not None:
+                ledger.loc[row_index, "closing_away_odds"] = closing_away_odds
+
+    ledger.to_csv(path, index=False)
+
+    return path
