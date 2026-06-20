@@ -36,6 +36,10 @@ from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
 from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
+from wc_forecast.validation.feature_ablation import (
+    DEFAULT_FEATURE_SET_NAMES,
+    save_feature_ablation,
+)
 from wc_forecast.validation.logistic_tuning import (
     DEFAULT_HALF_LIFE_DAYS_GRID,
     DEFAULT_LOGISTIC_C_GRID,
@@ -182,6 +186,103 @@ def build_features(
 
 DEFAULT_ROLLING_BACKTEST_METRICS_PATH = Path("outputs/rolling_backtest_metrics.csv")
 DEFAULT_LOGISTIC_TUNING_PATH = Path("outputs/logistic_tuning_results.csv")
+DEFAULT_FEATURE_ABLATION_PATH = Path("outputs/feature_ablation_results.csv")
+
+
+
+@app.command("ablate-features")
+def ablate_features_command(
+    features_path: Annotated[
+        Path,
+        typer.Argument(help="Path to model-ready feature table CSV."),
+    ] = DEFAULT_FEATURES_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for feature ablation results CSV.",
+        ),
+    ] = DEFAULT_FEATURE_ABLATION_PATH,
+    feature_sets_csv: Annotated[
+        str,
+        typer.Option(
+            "--feature-sets",
+            help="Comma-separated feature-set names to compare.",
+        ),
+    ] = ",".join(DEFAULT_FEATURE_SET_NAMES),
+    cutoff_dates_csv: Annotated[
+        str,
+        typer.Option(
+            "--cutoff-dates",
+            help="Comma-separated historical cutoff dates.",
+        ),
+    ] = ",".join(DEFAULT_ROLLING_CUTOFF_DATES),
+    evaluation_window_days: Annotated[
+        int,
+        typer.Option(
+            "--evaluation-window-days",
+            help="Number of days after each cutoff to evaluate.",
+        ),
+    ] = 365,
+    sample_weight_half_life_days: Annotated[
+        float | None,
+        typer.Option(
+            "--sample-weight-half-life-days",
+            help="Optional recency half-life in days for training weights.",
+        ),
+    ] = None,
+    logistic_c: Annotated[
+        float,
+        typer.Option(
+            "--logistic-c",
+            help="Inverse regularization strength for logistic model.",
+        ),
+    ] = 1.0,
+) -> None:
+    """Run rolling feature ablation validation."""
+
+    feature_set_names = [
+        feature_set.strip()
+        for feature_set in feature_sets_csv.split(",")
+        if feature_set.strip()
+    ]
+    cutoff_dates = [
+        cutoff.strip()
+        for cutoff in cutoff_dates_csv.split(",")
+        if cutoff.strip()
+    ]
+
+    result = save_feature_ablation(
+        features_path=features_path,
+        output_path=output_path,
+        feature_set_names=feature_set_names,
+        cutoff_dates=cutoff_dates,
+        evaluation_window_days=evaluation_window_days,
+        sample_weight_half_life_days=sample_weight_half_life_days,
+        logistic_c=logistic_c,
+    )
+
+    table = Table(title="Feature Ablation Validation")
+    table.add_column("Feature Set")
+    table.add_column("Features", justify="right")
+    table.add_column("Folds", justify="right")
+    table.add_column("Accuracy", justify="right")
+    table.add_column("Log Loss", justify="right")
+    table.add_column("Brier", justify="right")
+
+    for row in result.itertuples(index=False):
+        table.add_row(
+            str(row.feature_set),
+            str(row.active_feature_count),
+            str(row.folds),
+            f"{row.mean_accuracy:.4f}",
+            f"{row.mean_log_loss:.4f}",
+            f"{row.mean_brier:.4f}",
+        )
+
+    console.print(table)
+    console.print(f"Feature ablation results written to: {output_path}")
 
 
 @app.command("tune-logistic")
