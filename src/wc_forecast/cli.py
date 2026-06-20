@@ -9,12 +9,15 @@ from rich.table import Table
 
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.features.build_features import save_match_features
+from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_FEATURES_PATH = Path("data/processed/features.csv")
 DEFAULT_ELO_RATINGS_PATH = Path("outputs/elo_ratings.csv")
 DEFAULT_ELO_HISTORY_PATH = Path("outputs/elo_history.csv")
+DEFAULT_LOGISTIC_PREDICTIONS_PATH = Path("outputs/logistic_backtest_predictions.csv")
+DEFAULT_LOGISTIC_METRICS_PATH = Path("outputs/logistic_backtest_metrics.csv")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -120,6 +123,54 @@ def build_features(
     """Build a model-ready pre-match feature table."""
     destination = save_match_features(results_path=results_path, output_path=output_path)
     console.print(f"[green]Feature table written to:[/green] {destination}")
+
+
+@app.command("backtest-logistic")
+def backtest_logistic(
+    features_path: Annotated[
+        Path,
+        typer.Argument(help="Path to model-ready feature table CSV."),
+    ] = DEFAULT_FEATURES_PATH,
+    predictions_output: Annotated[
+        Path,
+        typer.Option(
+            "--predictions-output",
+            help="Path for match-level backtest predictions CSV.",
+        ),
+    ] = DEFAULT_LOGISTIC_PREDICTIONS_PATH,
+    metrics_output: Annotated[
+        Path,
+        typer.Option(
+            "--metrics-output",
+            help="Path for backtest metrics CSV.",
+        ),
+    ] = DEFAULT_LOGISTIC_METRICS_PATH,
+    test_fraction: Annotated[
+        float,
+        typer.Option(
+            "--test-fraction",
+            help="Fraction of latest matches reserved for chronological test set.",
+        ),
+    ] = 0.30,
+) -> None:
+    """Run a chronological logistic-regression backtest."""
+    result = save_logistic_backtest(
+        features_path=features_path,
+        predictions_output_path=predictions_output,
+        metrics_output_path=metrics_output,
+        test_fraction=test_fraction,
+    )
+
+    table = Table(title="Logistic Regression Backtest Metrics")
+    table.add_column("Metric")
+    table.add_column("Value", justify="right")
+
+    for row in result.metrics.itertuples(index=False):
+        table.add_row(row.metric, f"{row.value:.4f}")
+
+    console.print(table)
+    console.print(f"[green]Predictions written to:[/green] {predictions_output}")
+    console.print(f"[green]Metrics written to:[/green] {metrics_output}")
 
 
 if __name__ == "__main__":
