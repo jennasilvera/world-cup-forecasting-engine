@@ -381,3 +381,72 @@ def test_append_candidate_edges_respects_strategy_action(tmp_path) -> None:
     assert len(saved) == 1
     assert saved.loc[0, "home_team"] == "Brazil"
     assert saved.loc[0, "away_team"] == "Spain"
+
+
+def test_batch_ledger_logging_preserves_stake_sizing_fields(tmp_path) -> None:
+    batch_edges_path = tmp_path / "stake_sizing_edges.csv"
+    ledger_path = tmp_path / "prediction_ledger.csv"
+
+    edges = _sample_batch_edges()
+    edges["strategy_action"] = ["actionable", "actionable"]
+    edges["strategy_reason"] = ["passes_policy", "passes_policy"]
+    edges["full_kelly_fraction"] = [0.50, 0.25]
+    edges["suggested_stake_fraction"] = [0.02, 0.01]
+    edges["suggested_stake_amount"] = [20.0, 10.0]
+    edges["stake_sizing_reason"] = [
+        "single_bet_cap_applied",
+        "fractional_kelly",
+    ]
+    edges.to_csv(batch_edges_path, index=False)
+
+    destination = append_candidate_edges_to_prediction_ledger(
+        batch_edges_path=batch_edges_path,
+        ledger_path=ledger_path,
+        prediction_timestamp="2026-06-19T12:00:00+00:00",
+    )
+
+    saved = pd.read_csv(destination)
+
+    assert "suggested_stake_amount" in saved.columns
+    assert set(saved["suggested_stake_amount"]) == {20.0, 10.0}
+    assert set(saved["stake_sizing_reason"]) == {
+        "single_bet_cap_applied",
+        "fractional_kelly",
+    }
+
+
+def test_batch_settlement_uses_suggested_stake_amount_when_available(
+    tmp_path,
+) -> None:
+    batch_edges_path = tmp_path / "stake_sizing_edges.csv"
+    ledger_path = tmp_path / "prediction_ledger.csv"
+    settlement_path = tmp_path / "settlement_results.csv"
+
+    edges = _sample_batch_edges()
+    edges["strategy_action"] = ["actionable", "actionable"]
+    edges["strategy_reason"] = ["passes_policy", "passes_policy"]
+    edges["full_kelly_fraction"] = [0.50, 0.25]
+    edges["suggested_stake_fraction"] = [0.02, 0.01]
+    edges["suggested_stake_amount"] = [20.0, 10.0]
+    edges["stake_sizing_reason"] = [
+        "single_bet_cap_applied",
+        "fractional_kelly",
+    ]
+
+    _sample_settlement_results().to_csv(settlement_path, index=False)
+    edges.to_csv(batch_edges_path, index=False)
+
+    append_candidate_edges_to_prediction_ledger(
+        batch_edges_path=batch_edges_path,
+        ledger_path=ledger_path,
+        prediction_timestamp="2026-06-19T12:00:00+00:00",
+    )
+
+    destination = settle_prediction_ledger_from_results(
+        ledger_path=ledger_path,
+        settlement_results_path=settlement_path,
+    )
+
+    settled = pd.read_csv(destination)
+
+    assert set(settled["realized_return"]) == {48.0, 23.0}

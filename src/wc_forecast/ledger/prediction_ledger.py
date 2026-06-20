@@ -47,6 +47,10 @@ LEDGER_COLUMNS = [
     "ensemble_confidence",
     "ensemble_entropy",
     "max_model_disagreement",
+    "full_kelly_fraction",
+    "suggested_stake_fraction",
+    "suggested_stake_amount",
+    "stake_sizing_reason",
     "closing_home_odds",
     "closing_draw_odds",
     "closing_away_odds",
@@ -111,6 +115,10 @@ def build_prediction_ledger_row(
         "ensemble_confidence": prediction["ensemble_confidence"],
         "ensemble_entropy": prediction["ensemble_entropy"],
         "max_model_disagreement": prediction["max_model_disagreement"],
+        "full_kelly_fraction": "",
+        "suggested_stake_fraction": "",
+        "suggested_stake_amount": "",
+        "stake_sizing_reason": "",
         "closing_home_odds": "",
         "closing_draw_odds": "",
         "closing_away_odds": "",
@@ -361,6 +369,10 @@ def build_prediction_ledger_row_from_batch_edge(
         "ensemble_confidence": edge_row["ensemble_confidence"],
         "ensemble_entropy": edge_row["ensemble_entropy"],
         "max_model_disagreement": edge_row["max_model_disagreement"],
+        "full_kelly_fraction": edge_row.get("full_kelly_fraction", ""),
+        "suggested_stake_fraction": edge_row.get("suggested_stake_fraction", ""),
+        "suggested_stake_amount": edge_row.get("suggested_stake_amount", ""),
+        "stake_sizing_reason": edge_row.get("stake_sizing_reason", ""),
         "closing_home_odds": "",
         "closing_draw_odds": "",
         "closing_away_odds": "",
@@ -559,13 +571,21 @@ def settle_prediction_ledger_from_results(
         for row_index in ledger.index[matching_rows]:
             best_outcome = str(ledger.loc[row_index, "best_outcome"])
 
+            row_stake = stake
+
+            if (
+                "suggested_stake_amount" in ledger.columns
+                and _ledger_has_value(ledger.loc[row_index, "suggested_stake_amount"])
+            ):
+                row_stake = float(ledger.loc[row_index, "suggested_stake_amount"])
+
             realized_return = realized_return_for_prediction(
                 best_outcome=best_outcome,
                 final_outcome=final_outcome,
                 home_odds=float(ledger.loc[row_index, "home_odds"]),
                 draw_odds=float(ledger.loc[row_index, "draw_odds"]),
                 away_odds=float(ledger.loc[row_index, "away_odds"]),
-                stake=stake,
+                stake=row_stake,
             )
 
             ledger.loc[row_index, "final_home_score"] = final_home_score
