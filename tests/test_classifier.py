@@ -178,3 +178,23 @@ def test_run_logistic_backtest_supports_recency_weighted_training() -> None:
     assert len(result.predictions) == 4
     assert metrics["train_rows"] == 6
     assert metrics["test_rows"] == 4
+
+
+def test_run_logistic_backtest_supports_gradient_boosting_model() -> None:
+    result = run_logistic_backtest(
+        _sample_features(),
+        cutoff_date="2022-11-24",
+        model_type="gradient_boosting",
+    )
+
+    assert len(result.predictions) == 4
+    assert set(PREDICTION_COLUMNS).issubset(result.predictions.columns)
+
+
+def test_run_logistic_backtest_rejects_unknown_model_type() -> None:
+    with pytest.raises(ValueError, match="Unsupported model_type"):
+        run_logistic_backtest(
+            _sample_features(),
+            cutoff_date="2022-11-24",
+            model_type="not_a_model",
+        )

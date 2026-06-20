@@ -5,6 +5,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, log_loss
 from sklearn.pipeline import Pipeline
@@ -19,6 +20,7 @@ from wc_forecast.features.build_features import (
 OUTCOME_ORDER = ["home_win", "draw", "away_win"]
 PREDICTION_COLUMNS = [f"prob_{outcome}" for outcome in OUTCOME_ORDER]
 DEFAULT_RECENCY_HALF_LIFE_DAYS = 1_460.0
+SUPPORTED_MODEL_TYPES = {"logistic", "gradient_boosting", "random_forest"}
 
 
 @dataclass(frozen=True)
@@ -27,6 +29,40 @@ class BacktestResult:
 
     predictions: pd.DataFrame
     metrics: pd.DataFrame
+
+
+def _make_classifier(model_type: str) -> object:
+    """Create a supported classification model."""
+
+    if model_type == "logistic":
+        return LogisticRegression(
+            max_iter=1_000,
+            random_state=42,
+        )
+
+    if model_type == "gradient_boosting":
+        return HistGradientBoostingClassifier(
+            loss="log_loss",
+            learning_rate=0.05,
+            max_iter=250,
+            max_leaf_nodes=31,
+            l2_regularization=0.05,
+            random_state=42,
+        )
+
+    if model_type == "random_forest":
+        return RandomForestClassifier(
+            n_estimators=400,
+            max_depth=12,
+            min_samples_leaf=10,
+            random_state=42,
+            n_jobs=-1,
+        )
+
+    raise ValueError(
+        f"Unsupported model_type: {model_type}. "
+        f"Expected one of: {sorted(SUPPORTED_MODEL_TYPES)}"
+    )
 
 
 def calculate_recency_sample_weights(
@@ -141,8 +177,9 @@ def _validate_training_outcomes(train_features: pd.DataFrame) -> None:
 def train_logistic_regression(
     train_features: pd.DataFrame,
     sample_weight_half_life_days: float | None = None,
+    model_type: str = "logistic",
 ) -> Pipeline:
-    """Train a multinomial logistic regression model on pre-match features."""
+    """Train a supported three-class football outcome model."""
 
     validate_feature_table(train_features)
     _validate_training_outcomes(train_features)
@@ -153,13 +190,7 @@ def train_logistic_regression(
     model = Pipeline(
         steps=[
             ("scaler", StandardScaler()),
-            (
-                "classifier",
-                LogisticRegression(
-                    max_iter=1_000,
-                    random_state=42,
-                ),
-            ),
+            ("classifier", _make_classifier(model_type)),
         ]
     )
 
@@ -274,6 +305,7 @@ def run_logistic_backtest(
     test_fraction: float = 0.30,
     cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
+    model_type: str = "logistic",
 ) -> BacktestResult:
     """Run a chronological logistic-regression backtest."""
 
@@ -293,6 +325,7 @@ def run_logistic_backtest(
     model = train_logistic_regression(
         train,
         sample_weight_half_life_days=sample_weight_half_life_days,
+        model_type=model_type,
     )
     predictions = predict_probabilities(model, test)
     metrics = evaluate_predictions(
@@ -311,6 +344,7 @@ def save_logistic_backtest(
     test_fraction: float = 0.30,
     cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
+    model_type: str = "logistic",
 ) -> BacktestResult:
     """Load features, run backtest, and save predictions and metrics."""
 
@@ -320,6 +354,7 @@ def save_logistic_backtest(
         test_fraction=test_fraction,
         cutoff_date=cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
+        model_type=model_type,
     )
 
     predictions_destination = Path(predictions_output_path)
