@@ -139,3 +139,28 @@ def test_forecast_fixtures_outputs_probabilities() -> None:
     ].sum(axis=1)
 
     assert probability_sums.round(8).eq(1.0).all()
+
+
+def test_build_fixture_forecast_features_resolves_team_aliases() -> None:
+    fixtures = pd.DataFrame(
+        {
+            "date": ["2026-06-20"],
+            "home_team": ["Ecuador"],
+            "away_team": ["Curacao"],
+            "tournament": ["FIFA World Cup"],
+            "neutral": [True],
+        }
+    )
+    ratings = pd.DataFrame(
+        {
+            "team": ["Ecuador", "Curaçao"],
+            "elo_rating": [1860.4, 1701.2],
+        }
+    )
+
+    fixture_features = build_fixture_forecast_features(
+        fixtures=fixtures,
+        ratings=ratings,
+    )
+
+    assert fixture_features.loc[0, "away_elo_rating"] == pytest.approx(1701.2)

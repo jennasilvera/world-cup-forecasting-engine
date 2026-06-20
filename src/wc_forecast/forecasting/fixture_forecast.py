@@ -19,6 +19,17 @@ REQUIRED_FIXTURE_COLUMNS = [
     "neutral",
 ]
 
+TEAM_ALIASES = {
+    "Curacao": "Curaçao",
+    "Czechia": "Czech Republic",
+    "DR Congo": "DR Congo",
+    "Ivory Coast": "Ivory Coast",
+    "Cape Verde": "Cape Verde",
+    "South Korea": "South Korea",
+    "United States": "United States",
+    "USA": "United States",
+}
+
 FORECAST_OUTPUT_COLUMNS = [
     "date",
     "home_team",
@@ -251,9 +262,19 @@ def _ratings_lookup(ratings: pd.DataFrame) -> dict[str, float]:
 
 
 def _team_rating(ratings_lookup: dict[str, float], team: str) -> float:
-    """Return team rating, falling back to a neutral rating for unknown teams."""
+    """Return team rating, resolving aliases before using fallback rating."""
 
-    return ratings_lookup.get(str(team).strip(), 1500.0)
+    normalized_team = _normalize_team_name(team)
+
+    return ratings_lookup.get(normalized_team, 1500.0)
+
+
+def _normalize_team_name(team: str) -> str:
+    """Normalize common fixture team aliases to historical-results names."""
+
+    cleaned = str(team).strip()
+
+    return TEAM_ALIASES.get(cleaned, cleaned)
 
 
 def _elo_expected_score(home_rating: float, away_rating: float) -> float:
