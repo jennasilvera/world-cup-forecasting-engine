@@ -335,3 +335,237 @@ It demonstrates how to build a reproducible probabilistic forecasting pipeline w
 - Proper leakage controls
 - Transparent reporting
 - Clean Python engineering practices
+
+## System Design and Forecasting Agent Architecture
+
+### Core Design Principles
+
+#### Leakage prevention
+
+The feature pipeline is chronological. Pre-match features are calculated before the match result is known. Elo ratings are updated after each match, but the model only receives the pre-match rating state for prediction.
+
+#### Probabilistic forecasting
+
+The engine does not only output a winner. It produces probability distributions over:
+
+- home win
+- draw
+- away win
+- scorelines
+- group-stage advancement probabilities
+
+This allows the system to support calibration, risk analysis, and expected value calculations.
+
+#### Separation of model and decision layers
+
+The model forecast is not treated as an automatic action.
+
+The system separates:
+
+    forecast probability
+    → market-implied probability
+    → edge detection
+    → strategy policy filtering
+    → stake sizing
+    → ledger logging
+    → settlement
+    → performance review
+
+This makes the project closer to a real research or trading process, where a signal must pass risk and quality gates before becoming an action.
+
+### Main Components
+
+#### Data ingestion
+
+The ingestion layer validates historical match results before writing processed data. It checks schema quality, missing values, team validity, score values, and outcome construction.
+
+Primary command:
+
+    python -m wc_forecast ingest-results data/sample/historical_results_sample.csv
+
+#### Elo rating engine
+
+The Elo module generates team strength ratings using chronological match results. It supports tournament weighting, margin-of-victory adjustment, and neutral-site handling.
+
+Primary command:
+
+    python -m wc_forecast build-elo
+
+#### Feature engineering
+
+The feature builder creates pre-match model features from historical data and Elo state. It is designed to avoid future leakage.
+
+Primary command:
+
+    python -m wc_forecast build-features
+
+#### Logistic model backtest
+
+The logistic model provides a supervised learning baseline with chronological train/test splitting. It reports accuracy, log loss, and multiclass Brier score.
+
+Primary command:
+
+    python -m wc_forecast backtest-logistic
+
+#### Poisson expected-goals model
+
+The Poisson model estimates expected goals and scoreline probabilities. It supports match-level probability forecasts and scoreline analysis.
+
+Primary command:
+
+    python -m wc_forecast predict-poisson Argentina France
+
+#### Ensemble forecast
+
+The ensemble combines model outputs into a blended probability forecast. It tracks confidence, entropy, and model disagreement.
+
+This gives the strategy layer more than just a single probability estimate. It also receives quality and uncertainty indicators.
+
+#### Market odds and edge detection
+
+The market layer converts decimal odds into implied probabilities, removes market overround, compares model probabilities against market fair probabilities, and calculates expected value.
+
+Primary commands:
+
+    python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
+    python -m wc_forecast batch-evaluate-market data/sample/market_odds_sample.csv
+
+#### Strategy policy layer
+
+The strategy policy layer filters raw candidate edges using risk and quality gates:
+
+- minimum edge
+- minimum expected value
+- maximum entropy
+- maximum model disagreement
+- maximum market overround
+- allowed confidence levels
+
+Primary command:
+
+    python -m wc_forecast apply-strategy-policy outputs/batch_market_edges.csv
+
+#### Stake sizing
+
+The stake sizing layer applies fractional Kelly sizing with caps on single-bet exposure and total portfolio exposure.
+
+Primary command:
+
+    python -m wc_forecast size-stakes outputs/strategy_policy_edges.csv
+
+#### Prediction ledger
+
+The ledger records each forecast and decision for auditability. It stores model probabilities, market probabilities, edges, expected values, strategy decisions, stake sizing fields, final outcomes, closing odds, and realized returns.
+
+Primary commands:
+
+    python -m wc_forecast log-batch-predictions outputs/stake_sizing_edges.csv
+    python -m wc_forecast settle-batch-predictions data/sample/settlement_results_sample.csv
+    python -m wc_forecast report-ledger
+
+#### Group-stage simulation
+
+The simulation layer uses forecast probabilities and scoreline sampling to estimate group-stage standings and advancement probabilities.
+
+Primary command:
+
+    python -m wc_forecast simulate-group-stage --n-simulations 500
+
+### One-Command Demo
+
+The project includes a full demo pipeline:
+
+    make demo
+
+The demo runs ingestion, ratings, features, model backtesting, match forecasting, market edge evaluation, strategy policy filtering, stake sizing, ledger logging, settlement, reporting, and group-stage simulation.
+
+The project also includes:
+
+    make check
+
+which runs linting and the full test suite.
+
+### Outputs
+
+Important generated outputs include:
+
+    data/processed/results.csv
+    data/processed/features.csv
+    outputs/elo_ratings.csv
+    outputs/logistic_backtest_predictions.csv
+    outputs/logistic_backtest_metrics.csv
+    outputs/poisson_prediction.csv
+    outputs/match_prediction.csv
+    outputs/market_edge.csv
+    outputs/batch_market_edges.csv
+    outputs/strategy_policy_edges.csv
+    outputs/stake_sizing_edges.csv
+    outputs/prediction_ledger.csv
+    outputs/prediction_ledger_report.md
+    outputs/group_stage_simulation.csv
+    reports/logistic_backtest_report.md
+    reports/match_prediction_report.md
+    reports/group_stage_simulation_report.md
+
+### Testing and CI
+
+The repository includes automated tests for:
+
+- data ingestion
+- Elo ratings
+- feature engineering
+- model backtesting
+- Poisson forecasting
+- ensemble blending
+- market odds de-vigging
+- batch edge evaluation
+- strategy policy filtering
+- fractional Kelly stake sizing
+- ledger logging
+- settlement
+- stake-weighted reporting
+- group-stage simulation
+- CLI import health
+
+The CI workflow runs linting, tests, and the sample forecasting pipeline.
+
+### Current Limitations
+
+The committed sample dataset is intentionally small and synthetic/demo-oriented. The current outputs should be interpreted as workflow validation, not evidence of real predictive accuracy or betting profitability.
+
+A real production-grade version would require:
+
+- larger historical results datasets
+- team/player availability data
+- fixture metadata
+- travel/rest/contextual features
+- market odds snapshots with timestamps
+- out-of-sample prediction history
+- calibration tracking
+- robust feature versioning
+- model version registry
+- automated data refresh
+- monitoring and alerting
+
+### Future Extensions
+
+Potential future extensions include:
+
+- richer feature store
+- player-level availability model
+- injury and suspension ingestion
+- market movement tracking
+- closing-line value dashboards
+- calibration plots
+- model registry
+- automated scheduled predictions
+- API service for forecasts
+- dashboard for match and portfolio views
+- database-backed prediction ledger
+
+### Summary
+
+This project demonstrates more than a basic machine learning model. It implements an end-to-end forecasting and decision workflow with modeling, risk filters, stake sizing, audit logging, settlement, and performance reporting.
+
+The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
+
