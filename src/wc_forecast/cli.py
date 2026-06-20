@@ -11,6 +11,7 @@ from rich.table import Table
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.data_sources.international_results import save_normalized_international_results
 from wc_forecast.features.build_features import save_match_features
+from wc_forecast.forecasting.fixture_forecast import save_fixture_forecasts
 from wc_forecast.ledger.prediction_ledger import (
     append_candidate_edges_to_prediction_ledger,
     save_market_prediction_to_ledger,
@@ -48,6 +49,8 @@ DEFAULT_POISSON_PREDICTION_PATH = Path("outputs/poisson_prediction.csv")
 DEFAULT_MATCH_PREDICTION_PATH = Path("outputs/match_prediction.csv")
 DEFAULT_MATCH_REPORT_PATH = Path("reports/match_prediction_report.md")
 DEFAULT_GROUP_FIXTURES_PATH = Path("data/sample/group_stage_fixtures_sample.csv")
+DEFAULT_WORLD_CUP_FIXTURES_PATH = Path("data/sample/world_cup_2026_fixtures_sample.csv")
+DEFAULT_WORLD_CUP_FORECASTS_PATH = Path("outputs/world_cup_2026_forecasts.csv")
 DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
 DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_report.md")
 DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
@@ -384,6 +387,73 @@ def report_match(
 
     console.print(f"[green]Match prediction written to:[/green] {prediction_destination}")
     console.print(f"[green]Match report written to:[/green] {report_destination}")
+
+
+@app.command("forecast-fixtures")
+def forecast_fixtures_command(
+    fixtures_path: Annotated[
+        Path,
+        typer.Argument(help="Path to fixture slate CSV."),
+    ] = DEFAULT_WORLD_CUP_FIXTURES_PATH,
+    features_path: Annotated[
+        Path,
+        typer.Option(
+            "--features-path",
+            help="Path to model-ready historical feature table CSV.",
+        ),
+    ] = DEFAULT_FEATURES_PATH,
+    ratings_path: Annotated[
+        Path,
+        typer.Option(
+            "--ratings-path",
+            help="Path to latest Elo ratings CSV.",
+        ),
+    ] = DEFAULT_ELO_RATINGS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for fixture forecast CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_FORECASTS_PATH,
+    train_cutoff_date: Annotated[
+        str,
+        typer.Option(
+            "--train-cutoff-date",
+            help="Train only on historical feature rows before this date.",
+        ),
+    ] = "2026-01-01",
+) -> None:
+    """Forecast a slate of FIFA World Cup fixtures."""
+    forecasts = save_fixture_forecasts(
+        fixtures_path=fixtures_path,
+        features_path=features_path,
+        ratings_path=ratings_path,
+        output_path=output_path,
+        train_cutoff_date=train_cutoff_date,
+    )
+
+    table = Table(title="Fixture Forecasts")
+    table.add_column("Match")
+    table.add_column("Predicted Winner")
+    table.add_column("Home", justify="right")
+    table.add_column("Draw", justify="right")
+    table.add_column("Away", justify="right")
+    table.add_column("Confidence", justify="right")
+
+    for row in forecasts.itertuples(index=False):
+        table.add_row(
+            f"{row.home_team} vs {row.away_team}",
+            row.predicted_winner,
+            f"{row.prob_home_win:.1%}",
+            f"{row.prob_draw:.1%}",
+            f"{row.prob_away_win:.1%}",
+            f"{row.model_confidence:.1%}",
+        )
+
+    console.print(table)
+    console.print(f"[green]Fixture forecasts written to:[/green] {output_path}")
 
 
 @app.command("simulate-group-stage")
