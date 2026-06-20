@@ -11,6 +11,7 @@ FINAL_AWAY_SCORE = 1
 CLOSING_HOME_ODDS = 2.10
 CLOSING_DRAW_ODDS = 3.25
 CLOSING_AWAY_ODDS = 3.60
+MARKET_ODDS_PATH = data/sample/market_odds_sample.csv
 
 .PHONY: install lint test check health ingest build-elo build-features backtest report-backtest poisson report-match simulate-group-stage report-group-stage demo clean
 
@@ -53,6 +54,9 @@ report-match:
 market-edge:
 	$(PYTHON) -m wc_forecast evaluate-market $(HOME_TEAM) $(AWAY_TEAM) --home-odds $(HOME_ODDS) --draw-odds $(DRAW_ODDS) --away-odds $(AWAY_ODDS)
 
+batch-market:
+	$(PYTHON) -m wc_forecast batch-evaluate-market $(MARKET_ODDS_PATH)
+
 log-prediction:
 	$(PYTHON) -m wc_forecast log-prediction $(HOME_TEAM) $(AWAY_TEAM) --home-odds $(HOME_ODDS) --draw-odds $(DRAW_ODDS) --away-odds $(AWAY_ODDS)
 
@@ -74,7 +78,7 @@ simulate-group-stage:
 report-group-stage:
 	$(PYTHON) -m wc_forecast report-group-stage
 
-demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge log-prediction settle-prediction report-ledger simulate-group-stage report-group-stage
+demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge batch-market log-prediction settle-prediction report-ledger simulate-group-stage report-group-stage
 	@echo "Demo pipeline complete."
 
 clean:

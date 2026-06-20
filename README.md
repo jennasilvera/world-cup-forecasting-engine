@@ -45,6 +45,7 @@ The current version includes:
 - Monte Carlo group-stage simulation
 - Group advancement probability outputs
 - Market-implied probability and expected value evaluation
+- Batch market odds slate evaluation and ranked edge output
 - Timestamped prediction ledger for forecast auditability
 - Ledger settlement with final score, closing odds, and realized return
 - Prediction ledger performance report
@@ -67,6 +68,7 @@ This executes:
 - Poisson expected-goals prediction
 - match prediction report generation
 - market edge and expected value evaluation
+- batch market odds slate evaluation
 - timestamped prediction ledger logging
 - prediction settlement and realized return calculation
 - prediction ledger performance reporting
@@ -216,6 +218,7 @@ Run the full MVP pipeline:
     python -m wc_forecast predict-poisson Argentina France
     python -m wc_forecast report-match Argentina France
     python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
+    python -m wc_forecast batch-evaluate-market data/sample/market_odds_sample.csv
     python -m wc_forecast log-prediction Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
     PREDICTION_ID=$(tail -n 1 outputs/prediction_ledger.csv
 outputs/prediction_ledger_report.md | cut -d',' -f1)
