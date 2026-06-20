@@ -13,6 +13,7 @@ CLOSING_DRAW_ODDS = 3.25
 CLOSING_AWAY_ODDS = 3.60
 MARKET_ODDS_PATH = data/sample/market_odds_sample.csv
 SETTLEMENT_RESULTS_PATH = data/sample/settlement_results_sample.csv
+STRATEGY_POLICY_PATH = outputs/strategy_policy_edges.csv
 
 .PHONY: install lint test check health ingest build-elo build-features backtest report-backtest poisson report-match simulate-group-stage report-group-stage demo clean
 
@@ -58,8 +59,11 @@ market-edge:
 batch-market:
 	$(PYTHON) -m wc_forecast batch-evaluate-market $(MARKET_ODDS_PATH)
 
+strategy-policy:
+	$(PYTHON) -m wc_forecast apply-strategy-policy outputs/batch_market_edges.csv --output $(STRATEGY_POLICY_PATH)
+
 log-batch-predictions:
-	$(PYTHON) -m wc_forecast log-batch-predictions outputs/batch_market_edges.csv
+	$(PYTHON) -m wc_forecast log-batch-predictions $(STRATEGY_POLICY_PATH)
 
 settle-batch-predictions:
 	$(PYTHON) -m wc_forecast settle-batch-predictions $(SETTLEMENT_RESULTS_PATH)
@@ -85,7 +89,7 @@ simulate-group-stage:
 report-group-stage:
 	$(PYTHON) -m wc_forecast report-group-stage
 
-demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge batch-market log-batch-predictions settle-batch-predictions log-prediction settle-prediction report-ledger simulate-group-stage report-group-stage
+demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge batch-market strategy-policy log-batch-predictions settle-batch-predictions log-prediction settle-prediction report-ledger simulate-group-stage report-group-stage
 	@echo "Demo pipeline complete."
 
 clean:
