@@ -45,7 +45,7 @@ DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
 DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_report.md")
 DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
-DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("reports/prediction_ledger_report.md")
+DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("outputs/prediction_ledger_report.md")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",

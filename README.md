@@ -84,7 +84,7 @@ Key generated and maintained project documents:
 - [Backtest Report](reports/logistic_backtest_report.md)
 - [Match Prediction Report](reports/match_prediction_report.md)
 - [Group-Stage Simulation Report](reports/group_stage_simulation_report.md)
-- [Prediction Ledger Performance Report](reports/prediction_ledger_report.md)
+- Prediction Ledger Performance Report generated at `outputs/prediction_ledger_report.md`
 - [Model Card](reports/model_card.md)
 - [Real Forecasting Agent Roadmap](docs/real_forecasting_agent_roadmap.md)
 - [Data Source Registry](docs/data_source_registry.md)
@@ -218,7 +218,7 @@ Run the full MVP pipeline:
     python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
     python -m wc_forecast log-prediction Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
     PREDICTION_ID=$(tail -n 1 outputs/prediction_ledger.csv
-reports/prediction_ledger_report.md | cut -d',' -f1)
+outputs/prediction_ledger_report.md | cut -d',' -f1)
     python -m wc_forecast settle-prediction "$PREDICTION_ID" --final-home-score 1 --final-away-score 1 --closing-home-odds 2.10 --closing-draw-odds 3.25 --closing-away-odds 3.60
     python -m wc_forecast report-ledger
     python -m wc_forecast simulate-group-stage --n-simulations 1000
