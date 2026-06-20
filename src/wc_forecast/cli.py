@@ -12,6 +12,7 @@ from wc_forecast.features.build_features import save_match_features
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
 from wc_forecast.models.poisson import PoissonGoalsModel, save_poisson_prediction
+from wc_forecast.reporting.group_stage_report import save_group_stage_report
 from wc_forecast.reporting.match_report import save_match_prediction_report
 from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
@@ -28,6 +29,7 @@ DEFAULT_MATCH_PREDICTION_PATH = Path("outputs/match_prediction.csv")
 DEFAULT_MATCH_REPORT_PATH = Path("reports/match_prediction_report.md")
 DEFAULT_GROUP_FIXTURES_PATH = Path("data/sample/group_stage_fixtures_sample.csv")
 DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
+DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_report.md")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -405,6 +407,33 @@ def simulate_group_stage_command(
     )
 
     console.print(f"[green]Group-stage simulation written to:[/green] {destination}")
+
+
+@app.command("report-group-stage")
+def report_group_stage(
+    summary_path: Annotated[
+        Path,
+        typer.Option(
+            "--summary-path",
+            help="Path to group-stage simulation summary CSV.",
+        ),
+    ] = DEFAULT_GROUP_SIMULATION_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for Markdown group-stage simulation report.",
+        ),
+    ] = DEFAULT_GROUP_SIMULATION_REPORT_PATH,
+) -> None:
+    """Generate a Markdown report from group-stage simulation outputs."""
+    destination = save_group_stage_report(
+        summary_path=summary_path,
+        output_path=output_path,
+    )
+
+    console.print(f"[green]Group-stage report written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
