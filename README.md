@@ -46,6 +46,16 @@ The current version includes:
 - Group advancement probability outputs
 - Unit tests and linting
 
+## Documentation and Reports
+
+Key generated and maintained project documents:
+
+- [Backtest Report](reports/logistic_backtest_report.md)
+- [Match Prediction Report](reports/match_prediction_report.md)
+- [Group-Stage Simulation Report](reports/group_stage_simulation_report.md)
+- [Model Card](reports/model_card.md)
+- [Assumptions and Limitations](reports/assumptions.md)
+
 ## Repository Structure
 
     world-cup-forecasting-engine/
