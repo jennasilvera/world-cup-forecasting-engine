@@ -166,7 +166,9 @@ def evaluate_predictions(
 
     y_true = predictions["actual_outcome"]
     y_pred = predictions["predicted_outcome"]
-    probability_matrix = predictions[PREDICTION_COLUMNS].to_numpy()
+    log_loss_labels = sorted(OUTCOME_ORDER)
+    log_loss_probability_columns = [f"prob_{label}" for label in log_loss_labels]
+    probability_matrix = predictions[log_loss_probability_columns].to_numpy()
 
     metrics = [
         {"metric": "train_rows", "value": float(train_size)},
@@ -174,7 +176,7 @@ def evaluate_predictions(
         {"metric": "accuracy", "value": float(accuracy_score(y_true, y_pred))},
         {
             "metric": "log_loss",
-            "value": float(log_loss(y_true, probability_matrix, labels=OUTCOME_ORDER)),
+            "value": float(log_loss(y_true, probability_matrix, labels=log_loss_labels)),
         },
         {
             "metric": "multiclass_brier_score",
