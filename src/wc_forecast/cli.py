@@ -414,6 +414,13 @@ def backtest_logistic(
             help="Model type: logistic, gradient_boosting, or random_forest.",
         ),
     ] = "logistic",
+    logistic_c: Annotated[
+        float,
+        typer.Option(
+            "--logistic-c",
+            help="Inverse regularization strength for logistic model.",
+        ),
+    ] = 1.0,
 
 ) -> None:
     """Run a chronological logistic-regression backtest."""
@@ -425,6 +432,7 @@ def backtest_logistic(
         cutoff_date=cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
     )
 
     table = Table(title="Logistic Regression Backtest Metrics")
@@ -666,6 +674,13 @@ def forecast_fixtures_command(
             help="Model type: logistic, gradient_boosting, or random_forest.",
         ),
     ] = "logistic",
+    logistic_c: Annotated[
+        float,
+        typer.Option(
+            "--logistic-c",
+            help="Inverse regularization strength for logistic model.",
+        ),
+    ] = 1.0,
 ) -> None:
     """Forecast a slate of FIFA World Cup fixtures."""
     forecasts = save_fixture_forecasts_from_results(
@@ -677,6 +692,7 @@ def forecast_fixtures_command(
         rating_cutoff_date=rating_cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
     )
 
     table = Table(title="Fixture Forecasts")

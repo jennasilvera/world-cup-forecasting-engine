@@ -263,3 +263,18 @@ def test_build_fixture_forecast_features_uses_form_lookup() -> None:
     assert fixture_features.loc[0, "home_form_5_goal_diff_per_match"] == pytest.approx(
         2.0
     )
+
+
+def test_forecast_fixtures_supports_logistic_regularization_strength() -> None:
+    forecasts = forecast_fixtures(
+        fixtures=_sample_fixtures(),
+        features=_sample_features(),
+        ratings=_sample_ratings(),
+        train_cutoff_date="2022-11-24",
+        sample_weight_half_life_days=365.0,
+        model_type="logistic",
+        logistic_c=0.5,
+    )
+
+    assert len(forecasts) == 2
+    assert "prob_home_win" in forecasts.columns

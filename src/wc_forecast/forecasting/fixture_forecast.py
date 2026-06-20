@@ -135,6 +135,7 @@ def train_model_before_cutoff(
     train_cutoff_date: str,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    logistic_c: float = 1.0,
 ) -> Pipeline:
     """Train model using only rows before the forecast cutoff date."""
 
@@ -155,6 +156,7 @@ def train_model_before_cutoff(
         training_features,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
     )
 
 
@@ -245,6 +247,7 @@ def forecast_fixtures(
     train_cutoff_date: str,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    logistic_c: float = 1.0,
     form_lookup: dict[str, dict[str, float]] | None = None,
 ) -> pd.DataFrame:
     """Train before cutoff and forecast a fixture slate."""
@@ -254,6 +257,7 @@ def forecast_fixtures(
         train_cutoff_date=train_cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
     )
 
     fixture_features = build_fixture_forecast_features(
@@ -310,6 +314,7 @@ def save_fixture_forecasts(
     train_cutoff_date: str,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    logistic_c: float = 1.0,
 ) -> pd.DataFrame:
     """Load inputs, forecast fixtures, and save forecast CSV."""
 
@@ -324,6 +329,7 @@ def save_fixture_forecasts(
         train_cutoff_date=train_cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
     )
 
     destination = Path(output_path)
@@ -342,6 +348,7 @@ def save_fixture_forecasts_from_results(
     rating_cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
+    logistic_c: float = 1.0,
 ) -> pd.DataFrame:
     """Load inputs, build cutoff-safe ratings, forecast fixtures, and save CSV."""
 
@@ -366,6 +373,7 @@ def save_fixture_forecasts_from_results(
         train_cutoff_date=train_cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,
+        logistic_c=logistic_c,
         form_lookup=form_lookup,
     )
 
