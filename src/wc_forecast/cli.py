@@ -12,6 +12,7 @@ from wc_forecast.features.build_features import save_match_features
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
 from wc_forecast.models.poisson import PoissonGoalsModel, save_poisson_prediction
+from wc_forecast.reporting.match_report import save_match_prediction_report
 from wc_forecast.reporting.prediction_report import save_backtest_report
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
@@ -22,6 +23,8 @@ DEFAULT_LOGISTIC_PREDICTIONS_PATH = Path("outputs/logistic_backtest_predictions.
 DEFAULT_LOGISTIC_METRICS_PATH = Path("outputs/logistic_backtest_metrics.csv")
 DEFAULT_BACKTEST_REPORT_PATH = Path("reports/logistic_backtest_report.md")
 DEFAULT_POISSON_PREDICTION_PATH = Path("outputs/poisson_prediction.csv")
+DEFAULT_MATCH_PREDICTION_PATH = Path("outputs/match_prediction.csv")
+DEFAULT_MATCH_REPORT_PATH = Path("reports/match_prediction_report.md")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -279,6 +282,67 @@ def predict_poisson(
 
     console.print(table)
     console.print(f"[green]Poisson prediction written to:[/green] {output_path}")
+
+
+@app.command("report-match")
+def report_match(
+    home_team: Annotated[
+        str,
+        typer.Argument(help="Home/team A name."),
+    ],
+    away_team: Annotated[
+        str,
+        typer.Argument(help="Away/team B name."),
+    ],
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results-path",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    prediction_output: Annotated[
+        Path,
+        typer.Option(
+            "--prediction-output",
+            help="Path for combined match prediction CSV.",
+        ),
+    ] = DEFAULT_MATCH_PREDICTION_PATH,
+    report_output: Annotated[
+        Path,
+        typer.Option(
+            "--report-output",
+            help="Path for Markdown match prediction report.",
+        ),
+    ] = DEFAULT_MATCH_REPORT_PATH,
+    tournament: Annotated[
+        str,
+        typer.Option(
+            "--tournament",
+            help="Tournament or match context label.",
+        ),
+    ] = "FIFA World Cup",
+    neutral: Annotated[
+        bool,
+        typer.Option(
+            "--neutral/--not-neutral",
+            help="Whether the match is played at a neutral site.",
+        ),
+    ] = True,
+) -> None:
+    """Generate an analyst-style match prediction report."""
+    prediction_destination, report_destination = save_match_prediction_report(
+        results_path=results_path,
+        home_team=home_team,
+        away_team=away_team,
+        prediction_output_path=prediction_output,
+        report_output_path=report_output,
+        tournament=tournament,
+        neutral=neutral,
+    )
+
+    console.print(f"[green]Match prediction written to:[/green] {prediction_destination}")
+    console.print(f"[green]Match report written to:[/green] {report_destination}")
 
 
 if __name__ == "__main__":
