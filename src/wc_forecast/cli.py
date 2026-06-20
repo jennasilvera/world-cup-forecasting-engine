@@ -10,6 +10,7 @@ from rich.table import Table
 
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.features.build_features import save_match_features
+from wc_forecast.ledger.prediction_ledger import save_market_prediction_to_ledger
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
 from wc_forecast.models.market import (
@@ -39,6 +40,7 @@ DEFAULT_GROUP_FIXTURES_PATH = Path("data/sample/group_stage_fixtures_sample.csv"
 DEFAULT_GROUP_SIMULATION_PATH = Path("outputs/group_stage_simulation.csv")
 DEFAULT_GROUP_SIMULATION_REPORT_PATH = Path("reports/group_stage_simulation_report.md")
 DEFAULT_MARKET_EDGE_PATH = Path("outputs/market_edge.csv")
+DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -583,6 +585,106 @@ def evaluate_market(
 
     console.print(table)
     console.print(f"[green]Market edge evaluation written to:[/green] {output_path}")
+
+
+@app.command("log-prediction")
+def log_prediction(
+    home_team: Annotated[
+        str,
+        typer.Argument(help="Home/team A name."),
+    ],
+    away_team: Annotated[
+        str,
+        typer.Argument(help="Away/team B name."),
+    ],
+    home_odds: Annotated[
+        float,
+        typer.Option(
+            "--home-odds",
+            help="Decimal odds for home/team A win.",
+        ),
+    ],
+    draw_odds: Annotated[
+        float,
+        typer.Option(
+            "--draw-odds",
+            help="Decimal odds for draw.",
+        ),
+    ],
+    away_odds: Annotated[
+        float,
+        typer.Option(
+            "--away-odds",
+            help="Decimal odds for away/team B win.",
+        ),
+    ],
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results-path",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    ledger_path: Annotated[
+        Path,
+        typer.Option(
+            "--ledger-path",
+            help="Path to prediction ledger CSV.",
+        ),
+    ] = DEFAULT_PREDICTION_LEDGER_PATH,
+    model_version: Annotated[
+        str,
+        typer.Option(
+            "--model-version",
+            help="Model version label for audit tracking.",
+        ),
+    ] = "demo-v1",
+    feature_version: Annotated[
+        str,
+        typer.Option(
+            "--feature-version",
+            help="Feature version label for audit tracking.",
+        ),
+    ] = "demo-features-v1",
+    prediction_timestamp: Annotated[
+        str | None,
+        typer.Option(
+            "--prediction-timestamp",
+            help="Optional prediction timestamp. Defaults to current UTC time.",
+        ),
+    ] = None,
+    kickoff_timestamp: Annotated[
+        str,
+        typer.Option(
+            "--kickoff-timestamp",
+            help="Optional kickoff timestamp.",
+        ),
+    ] = "",
+    notes: Annotated[
+        str,
+        typer.Option(
+            "--notes",
+            help="Optional audit notes.",
+        ),
+    ] = "",
+) -> None:
+    """Append a market-aware forecast to the prediction ledger."""
+    destination = save_market_prediction_to_ledger(
+        results_path=results_path,
+        ledger_path=ledger_path,
+        home_team=home_team,
+        away_team=away_team,
+        home_odds=home_odds,
+        draw_odds=draw_odds,
+        away_odds=away_odds,
+        model_version=model_version,
+        feature_version=feature_version,
+        prediction_timestamp=prediction_timestamp,
+        kickoff_timestamp=kickoff_timestamp,
+        notes=notes,
+    )
+
+    console.print(f"[green]Prediction logged to ledger:[/green] {destination}")
 
 
 if __name__ == "__main__":
