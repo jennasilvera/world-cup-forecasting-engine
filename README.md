@@ -1,5 +1,7 @@
 # World Cup Match Forecasting Engine
 
+[![World Cup Forecasting CI](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/jennasilvera/world-cup-forecasting-engine/actions/workflows/ci.yml)
+
 A quant-style probabilistic football forecasting system for FIFA World Cup matches.
 
 This project estimates pre-match win/draw/loss probabilities using historical international match results, custom Elo ratings, model-ready feature engineering, chronological backtesting, and recruiter-facing model reports.
