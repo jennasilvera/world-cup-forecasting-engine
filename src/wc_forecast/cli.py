@@ -36,6 +36,12 @@ from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
 from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
+from wc_forecast.validation.rolling_backtest import (
+    DEFAULT_MODEL_TYPES,
+    DEFAULT_ROLLING_CUTOFF_DATES,
+    save_rolling_backtest,
+    summarize_rolling_backtest,
+)
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_REAL_RESULTS_PATH = Path("data/processed/real_international_results.csv")
@@ -166,6 +172,97 @@ def build_features(
     """Build a model-ready pre-match feature table."""
     destination = save_match_features(results_path=results_path, output_path=output_path)
     console.print(f"[green]Feature table written to:[/green] {destination}")
+
+
+
+DEFAULT_ROLLING_BACKTEST_METRICS_PATH = Path("outputs/rolling_backtest_metrics.csv")
+
+@app.command("rolling-backtest")
+def rolling_backtest_command(
+    features_path: Annotated[
+        Path,
+        typer.Argument(help="Path to model-ready feature table CSV."),
+    ] = DEFAULT_FEATURES_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for rolling backtest metrics CSV.",
+        ),
+    ] = DEFAULT_ROLLING_BACKTEST_METRICS_PATH,
+    cutoff_dates_csv: Annotated[
+        str,
+        typer.Option(
+            "--cutoff-dates",
+            help="Comma-separated historical cutoff dates.",
+        ),
+    ] = ",".join(DEFAULT_ROLLING_CUTOFF_DATES),
+    model_types_csv: Annotated[
+        str,
+        typer.Option(
+            "--model-types",
+            help="Comma-separated model types to compare.",
+        ),
+    ] = ",".join(DEFAULT_MODEL_TYPES),
+    evaluation_window_days: Annotated[
+        int,
+        typer.Option(
+            "--evaluation-window-days",
+            help="Number of days after each cutoff to evaluate.",
+        ),
+    ] = 365,
+    sample_weight_half_life_days: Annotated[
+        float | None,
+        typer.Option(
+            "--sample-weight-half-life-days",
+            help="Optional recency half-life in days for training weights.",
+        ),
+    ] = None,
+) -> None:
+    """Run rolling-origin model validation across historical cutoffs."""
+
+    cutoff_dates = [
+        cutoff.strip()
+        for cutoff in cutoff_dates_csv.split(",")
+        if cutoff.strip()
+    ]
+    model_types = [
+        model_type.strip()
+        for model_type in model_types_csv.split(",")
+        if model_type.strip()
+    ]
+
+    results = save_rolling_backtest(
+        features_path=features_path,
+        output_path=output_path,
+        cutoff_dates=cutoff_dates,
+        model_types=model_types,
+        evaluation_window_days=evaluation_window_days,
+        sample_weight_half_life_days=sample_weight_half_life_days,
+    )
+    summary = summarize_rolling_backtest(results)
+
+    table = Table(title="Rolling Backtest Model Comparison")
+    table.add_column("Model")
+    table.add_column("Folds", justify="right")
+    table.add_column("Test Rows", justify="right")
+    table.add_column("Accuracy", justify="right")
+    table.add_column("Log Loss", justify="right")
+    table.add_column("Brier", justify="right")
+
+    for row in summary.itertuples(index=False):
+        table.add_row(
+            str(row.model_type),
+            str(row.folds),
+            str(int(row.total_test_rows)),
+            f"{row.mean_accuracy:.4f}",
+            f"{row.mean_log_loss:.4f}",
+            f"{row.mean_brier:.4f}",
+        )
+
+    console.print(table)
+    console.print(f"Rolling backtest metrics written to: {output_path}")
 
 
 @app.command("backtest-logistic")
