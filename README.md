@@ -569,3 +569,17 @@ This project demonstrates more than a basic machine learning model. It implement
 
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
+
+## Model Selection
+
+The default forecasting model is selected using rolling-origin validation across historical cutoff dates, feature ablation, and logistic hyperparameter tuning.
+
+Current default:
+
+- Model: logistic regression
+- Recency half-life: 2,190 days
+- Logistic regularization C: 4.0
+- Feature set: Elo, match context, rolling form, and attack/defense form
+
+See [`docs/model_selection.md`](docs/model_selection.md) for validation results and rationale.
+
