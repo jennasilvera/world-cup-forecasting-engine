@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 
-NORMALIZED_RESULTS_COLUMNS = [
+SOURCE_RESULTS_COLUMNS = [
     "date",
     "home_team",
     "away_team",
@@ -16,17 +16,9 @@ NORMALIZED_RESULTS_COLUMNS = [
     "neutral",
 ]
 
-SUPPORTED_SOURCE_COLUMNS = {
-    "date",
-    "home_team",
-    "away_team",
-    "home_score",
-    "away_score",
-    "tournament",
-    "city",
-    "country",
-    "neutral",
-}
+NORMALIZED_RESULTS_COLUMNS = SOURCE_RESULTS_COLUMNS + ["outcome"]
+
+SUPPORTED_SOURCE_COLUMNS = set(SOURCE_RESULTS_COLUMNS)
 
 
 def validate_international_results_source(results: pd.DataFrame) -> None:
@@ -54,7 +46,7 @@ def normalize_international_results(results: pd.DataFrame) -> pd.DataFrame:
 
     validate_international_results_source(results)
 
-    normalized = results[NORMALIZED_RESULTS_COLUMNS].copy()
+    normalized = results[SOURCE_RESULTS_COLUMNS].copy()
 
     normalized["date"] = pd.to_datetime(normalized["date"], errors="raise").dt.date
     normalized["date"] = normalized["date"].astype(str)
@@ -76,7 +68,9 @@ def normalize_international_results(results: pd.DataFrame) -> pd.DataFrame:
     if (normalized[["home_score", "away_score"]] < 0).any().any():
         raise ValueError("International results source contains negative scores.")
 
-    return normalized.sort_values("date").reset_index(drop=True)
+    normalized["outcome"] = normalized.apply(_match_outcome, axis=1)
+
+    return normalized[NORMALIZED_RESULTS_COLUMNS].sort_values("date").reset_index(drop=True)
 
 
 def save_normalized_international_results(
@@ -93,6 +87,18 @@ def save_normalized_international_results(
     normalized.to_csv(destination, index=False)
 
     return destination
+
+
+def _match_outcome(row: pd.Series) -> str:
+    """Return the match outcome from the home team's perspective."""
+
+    if row["home_score"] > row["away_score"]:
+        return "home_win"
+
+    if row["home_score"] < row["away_score"]:
+        return "away_win"
+
+    return "draw"
 
 
 def _coerce_bool(value: object) -> bool:

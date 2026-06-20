@@ -46,8 +46,11 @@ def test_normalize_international_results_outputs_engine_schema() -> None:
         "city",
         "country",
         "neutral",
+        "outcome",
     ]
     assert normalized.loc[0, "home_team"] == "Argentina"
+    assert normalized.loc[0, "outcome"] == "home_win"
+    assert normalized.loc[1, "outcome"] == "draw"
     assert bool(normalized.loc[1, "neutral"]) is False
 
 
@@ -75,3 +78,13 @@ def test_save_normalized_international_results_writes_csv(tmp_path) -> None:
     assert destination.exists()
     assert len(saved) == 2
     assert "home_team" in saved.columns
+
+
+def test_normalize_international_results_adds_away_win_outcome() -> None:
+    source = _sample_source()
+    source.loc[0, "home_score"] = 0
+    source.loc[0, "away_score"] = 2
+
+    normalized = normalize_international_results(source)
+
+    assert normalized.loc[0, "outcome"] == "away_win"
