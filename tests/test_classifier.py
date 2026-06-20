@@ -8,6 +8,7 @@ from wc_forecast.models.classifier import (
     OUTCOME_ORDER,
     PREDICTION_COLUMNS,
     chronological_train_test_split,
+    date_cutoff_train_test_split,
     run_logistic_backtest,
     train_logistic_regression,
 )
@@ -122,3 +123,31 @@ def test_run_logistic_backtest_outputs_probabilities_and_metrics() -> None:
 
 def test_outcome_order_is_three_class_football_result() -> None:
     assert OUTCOME_ORDER == ["home_win", "draw", "away_win"]
+
+
+def test_date_cutoff_train_test_split_uses_explicit_cutoff() -> None:
+    train, test = date_cutoff_train_test_split(
+        _sample_features(),
+        cutoff_date="2022-11-24",
+    )
+
+    assert len(train) == 6
+    assert len(test) == 4
+    assert train["date"].max() < pd.Timestamp("2022-11-24")
+    assert test["date"].min() >= pd.Timestamp("2022-11-24")
+
+
+def test_run_logistic_backtest_supports_cutoff_date() -> None:
+    result = run_logistic_backtest(
+        _sample_features(),
+        cutoff_date="2022-11-24",
+    )
+
+    metrics = dict(zip(result.metrics["metric"], result.metrics["value"], strict=True))
+
+    assert len(result.predictions) == 4
+    assert metrics["train_rows"] == 6
+    assert metrics["test_rows"] == 4
+    assert pd.to_datetime(result.predictions["date"]).min() >= pd.Timestamp(
+        "2022-11-24"
+    )

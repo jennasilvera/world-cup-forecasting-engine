@@ -57,6 +57,35 @@ def chronological_train_test_split(
     return train, test
 
 
+def date_cutoff_train_test_split(
+    features: pd.DataFrame,
+    cutoff_date: str,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Split features by date: train before cutoff, test on/after cutoff."""
+
+    cutoff = pd.to_datetime(cutoff_date, errors="raise")
+
+    sorted_features = features.copy()
+    sorted_features["date"] = pd.to_datetime(sorted_features["date"], errors="raise")
+    sorted_features = sorted_features.sort_values(
+        ["date", "home_team", "away_team"]
+    ).reset_index(drop=True)
+
+    train = sorted_features[sorted_features["date"] < cutoff].copy()
+    test = sorted_features[sorted_features["date"] >= cutoff].copy()
+
+    if len(train) < len(OUTCOME_ORDER):
+        raise ValueError(
+            "Not enough training rows before cutoff for a three-class football "
+            "outcome model."
+        )
+
+    if test.empty:
+        raise ValueError("No test rows found on or after cutoff_date.")
+
+    return train.reset_index(drop=True), test.reset_index(drop=True)
+
+
 def _validate_training_outcomes(train_features: pd.DataFrame) -> None:
     """Ensure the training set contains all required outcome classes."""
 
@@ -190,15 +219,22 @@ def evaluate_predictions(
 def run_logistic_backtest(
     features: pd.DataFrame,
     test_fraction: float = 0.30,
+    cutoff_date: str | None = None,
 ) -> BacktestResult:
     """Run a chronological logistic-regression backtest."""
 
     validate_feature_table(features)
 
-    train, test = chronological_train_test_split(
-        features=features,
-        test_fraction=test_fraction,
-    )
+    if cutoff_date is None:
+        train, test = chronological_train_test_split(
+            features=features,
+            test_fraction=test_fraction,
+        )
+    else:
+        train, test = date_cutoff_train_test_split(
+            features=features,
+            cutoff_date=cutoff_date,
+        )
 
     model = train_logistic_regression(train)
     predictions = predict_probabilities(model, test)
@@ -216,11 +252,16 @@ def save_logistic_backtest(
     predictions_output_path: str | Path,
     metrics_output_path: str | Path,
     test_fraction: float = 0.30,
+    cutoff_date: str | None = None,
 ) -> BacktestResult:
     """Load features, run backtest, and save predictions and metrics."""
 
     features = pd.read_csv(features_path)
-    result = run_logistic_backtest(features=features, test_fraction=test_fraction)
+    result = run_logistic_backtest(
+        features=features,
+        test_fraction=test_fraction,
+        cutoff_date=cutoff_date,
+    )
 
     predictions_destination = Path(predictions_output_path)
     metrics_destination = Path(metrics_output_path)

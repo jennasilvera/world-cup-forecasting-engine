@@ -191,7 +191,14 @@ def backtest_logistic(
             "--test-fraction",
             help="Fraction of latest matches reserved for chronological test set.",
         ),
-    ] = 0.30,
+    ] = 0.30,    cutoff_date: Annotated[
+        str | None,
+        typer.Option(
+            "--cutoff-date",
+            help="Optional cutoff date. Train before this date and test on/after it.",
+        ),
+    ] = None,
+
 ) -> None:
     """Run a chronological logistic-regression backtest."""
     result = save_logistic_backtest(
@@ -199,6 +206,7 @@ def backtest_logistic(
         predictions_output_path=predictions_output,
         metrics_output_path=metrics_output,
         test_fraction=test_fraction,
+        cutoff_date=cutoff_date,
     )
 
     table = Table(title="Logistic Regression Backtest Metrics")
