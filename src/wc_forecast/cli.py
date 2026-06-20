@@ -8,9 +8,11 @@ from rich.console import Console
 from rich.table import Table
 
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
+from wc_forecast.features.build_features import save_match_features
 from wc_forecast.models.elo import EloModel
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
+DEFAULT_FEATURES_PATH = Path("data/processed/features.csv")
 DEFAULT_ELO_RATINGS_PATH = Path("outputs/elo_ratings.csv")
 DEFAULT_ELO_HISTORY_PATH = Path("outputs/elo_history.csv")
 
@@ -98,6 +100,26 @@ def build_elo(
     console.print(table)
     console.print(f"[green]Elo ratings written to:[/green] {ratings_output}")
     console.print(f"[green]Elo history written to:[/green] {history_output}")
+
+
+@app.command("build-features")
+def build_features(
+    results_path: Annotated[
+        Path,
+        typer.Argument(help="Path to processed historical results CSV."),
+    ] = DEFAULT_PROCESSED_RESULTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for model-ready feature table CSV.",
+        ),
+    ] = DEFAULT_FEATURES_PATH,
+) -> None:
+    """Build a model-ready pre-match feature table."""
+    destination = save_match_features(results_path=results_path, output_path=output_path)
+    console.print(f"[green]Feature table written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
