@@ -38,6 +38,29 @@ def _to_float(value: object, default: float = 0.0) -> float:
     return float(value)
 
 
+def _numeric_series(frame: pd.DataFrame, column: str) -> pd.Series:
+    """Safely return a numeric column, defaulting to zeros when absent."""
+
+    if column not in frame.columns:
+        return pd.Series([0.0] * len(frame), index=frame.index)
+
+    return pd.to_numeric(frame[column], errors="coerce").fillna(0.0)
+
+
+def _stake_amount_series(frame: pd.DataFrame) -> pd.Series:
+    """Return suggested stake amounts, falling back to flat stake of 1."""
+
+    if "suggested_stake_amount" not in frame.columns:
+        return pd.Series([1.0] * len(frame), index=frame.index)
+
+    suggested = pd.to_numeric(
+        frame["suggested_stake_amount"],
+        errors="coerce",
+    )
+
+    return suggested.where(suggested > 0.0, 1.0).fillna(1.0)
+
+
 def _format_probability(value: float) -> str:
     """Format a decimal probability as a percentage."""
 
@@ -45,7 +68,7 @@ def _format_probability(value: float) -> str:
 
 
 def _format_money_return(value: float) -> str:
-    """Format flat-stake return."""
+    """Format return values."""
 
     return f"{value:.3f}"
 
@@ -85,6 +108,20 @@ def _selected_closing_odds(row: pd.Series) -> float | None:
     return _to_float(row[column])
 
 
+def _flat_stake_return(row: pd.Series) -> float:
+    """Calculate flat one-unit return independent of stored stake sizing."""
+
+    if str(row["best_outcome"]) != str(row["final_outcome"]):
+        return -1.0
+
+    selected_odds = _selected_opening_odds(row)
+
+    if selected_odds is None:
+        return 0.0
+
+    return selected_odds - 1.0
+
+
 def validate_prediction_ledger_for_report(ledger: pd.DataFrame) -> None:
     """Validate that a prediction ledger contains required reporting columns."""
 
@@ -122,9 +159,22 @@ def summarize_prediction_ledger(ledger: pd.DataFrame) -> dict[str, float | int]:
     settled_candidate_count = len(settled_candidate_edges)
 
     if settled_candidate_count:
-        realized_returns = settled_candidate_edges["realized_return"].map(_to_float)
-        total_realized_return = float(realized_returns.sum())
-        flat_stake_roi = total_realized_return / settled_candidate_count
+        realized_returns = _numeric_series(settled_candidate_edges, "realized_return")
+        stake_amounts = _stake_amount_series(settled_candidate_edges)
+
+        stake_weighted_return = float(realized_returns.sum())
+        total_suggested_exposure = float(stake_amounts.sum())
+        stake_weighted_roi = (
+            stake_weighted_return / total_suggested_exposure
+            if total_suggested_exposure
+            else 0.0
+        )
+        average_suggested_stake = total_suggested_exposure / settled_candidate_count
+
+        flat_stake_returns = settled_candidate_edges.apply(_flat_stake_return, axis=1)
+        flat_stake_return = float(flat_stake_returns.sum())
+        flat_stake_roi = flat_stake_return / settled_candidate_count
+
         hit_rate = float(
             (
                 settled_candidate_edges["best_outcome"]
@@ -136,7 +186,11 @@ def summarize_prediction_ledger(ledger: pd.DataFrame) -> dict[str, float | int]:
         )
         avg_edge = float(settled_candidate_edges["best_edge"].map(_to_float).mean())
     else:
-        total_realized_return = 0.0
+        stake_weighted_return = 0.0
+        total_suggested_exposure = 0.0
+        stake_weighted_roi = 0.0
+        average_suggested_stake = 0.0
+        flat_stake_return = 0.0
         flat_stake_roi = 0.0
         hit_rate = 0.0
         avg_expected_value = 0.0
@@ -163,8 +217,13 @@ def summarize_prediction_ledger(ledger: pd.DataFrame) -> dict[str, float | int]:
         "candidate_edges_logged": candidate_edges_logged,
         "settled_candidate_edges": settled_candidate_count,
         "hit_rate": hit_rate,
-        "total_realized_return": total_realized_return,
+        "total_realized_return": stake_weighted_return,
+        "flat_stake_return": flat_stake_return,
         "flat_stake_roi": flat_stake_roi,
+        "stake_weighted_return": stake_weighted_return,
+        "stake_weighted_roi": stake_weighted_roi,
+        "total_suggested_exposure": total_suggested_exposure,
+        "average_suggested_stake": average_suggested_stake,
         "avg_expected_value": avg_expected_value,
         "avg_edge": avg_edge,
         "avg_closing_line_value": avg_closing_line_value,
@@ -190,23 +249,32 @@ def render_prediction_ledger_report(
     settled_display = settled.tail(10)
 
     table_rows = [
-        "| Prediction ID | Match | Decision | Pick | Final | Return | EV | Edge |",
-        "|---|---|---|---|---|---:|---:|---:|",
+        "| Prediction ID | Match | Decision | Pick | Final | Stake | Return | EV | Edge |",
+        "|---|---|---|---|---|---:|---:|---:|---:|",
     ]
 
-    for row in settled_display.itertuples(index=False):
-        prediction_id = str(row.prediction_id)[:8]
-        match = f"{row.home_team} vs {row.away_team}"
+    for _, row in settled_display.iterrows():
+        prediction_id = str(row["prediction_id"])[:8]
+        match = f'{row["home_team"]} vs {row["away_team"]}'
+        stake_amount = (
+            _to_float(row["suggested_stake_amount"], default=1.0)
+            if "suggested_stake_amount" in settled_display.columns
+            else 1.0
+        )
+        if stake_amount <= 0.0:
+            stake_amount = 1.0
+
         table_rows.append(
             "| "
             f"{prediction_id} | "
             f"{match} | "
-            f"{row.decision} | "
-            f"{row.best_outcome} | "
-            f"{row.final_outcome} | "
-            f"{_format_money_return(_to_float(row.realized_return))} | "
-            f"{_format_money_return(_to_float(row.best_expected_value))} | "
-            f"{_format_probability(_to_float(row.best_edge))} |"
+            f'{row["decision"]} | '
+            f'{row["best_outcome"]} | '
+            f'{row["final_outcome"]} | '
+            f"{_format_money_return(stake_amount)} | "
+            f'{_format_money_return(_to_float(row["realized_return"]))} | '
+            f'{_format_money_return(_to_float(row["best_expected_value"]))} | '
+            f'{_format_probability(_to_float(row["best_edge"]))} |'
         )
 
     if settled.empty:
@@ -232,12 +300,16 @@ value tracking, and future betting-style evaluation.
 | Settled predictions | {summary["settled_predictions"]} |
 | Candidate edges logged | {summary["candidate_edges_logged"]} |
 | Settled candidate edges | {summary["settled_candidate_edges"]} |
-| Hit rate on settled candidate edges | {_format_probability(float(summary["hit_rate"]))} |
-| Total flat-stake return | {_format_money_return(float(summary["total_realized_return"]))} |
-| Flat-stake ROI | {_format_probability(float(summary["flat_stake_roi"]))} |
-| Average expected value | {_format_money_return(float(summary["avg_expected_value"]))} |
-| Average model edge | {_format_probability(float(summary["avg_edge"]))} |
-| Average closing-line movement | {_format_money_return(float(summary["avg_closing_line_value"]))} |
+| Hit rate on settled candidate edges | {_format_probability(summary["hit_rate"])} |
+| Flat-stake return | {_format_money_return(summary["flat_stake_return"])} |
+| Flat-stake ROI | {_format_probability(summary["flat_stake_roi"])} |
+| Stake-weighted return | {_format_money_return(summary["stake_weighted_return"])} |
+| Stake-weighted ROI | {_format_probability(summary["stake_weighted_roi"])} |
+| Total suggested exposure | {_format_money_return(summary["total_suggested_exposure"])} |
+| Average suggested stake | {_format_money_return(summary["average_suggested_stake"])} |
+| Average expected value | {_format_money_return(summary["avg_expected_value"])} |
+| Average model edge | {_format_probability(summary["avg_edge"])} |
+| Average closing-line movement | {_format_money_return(summary["avg_closing_line_value"])} |
 
 ## Recent Settled Predictions
 
@@ -251,6 +323,9 @@ forecasting agent's candidate betting-style signals.
 Rows with `decision = no_edge` are still useful for calibration and monitoring,
 but they should not be counted as active betting decisions unless a strategy
 explicitly says otherwise.
+
+Stake-weighted metrics use `suggested_stake_amount` when available and fall
+back to a one-unit flat stake for older ledger rows without sizing data.
 
 ## Caveats
 
@@ -266,11 +341,15 @@ explicitly says otherwise.
 def save_prediction_ledger_report(
     ledger_path: str | Path,
     output_path: str | Path,
+    title: str = "Prediction Ledger Performance Report",
 ) -> Path:
-    """Load a prediction ledger CSV and save a Markdown performance report."""
+    """Load a prediction ledger, render a report, and save it."""
 
-    ledger = pd.read_csv(ledger_path, keep_default_na=False, dtype=object)
-    report = render_prediction_ledger_report(ledger)
+    ledger = pd.read_csv(ledger_path, keep_default_na=False)
+    report = render_prediction_ledger_report(
+        ledger=ledger,
+        title=title,
+    )
 
     destination = Path(output_path)
     destination.parent.mkdir(parents=True, exist_ok=True)
