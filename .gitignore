@@ -28,3 +28,5 @@ reports/*.pdf
 # Commit tiny reproducible sample data, but keep raw/processed local.
 !data/sample/
 !data/sample/*.csv
+data/external/*
+!data/external/.gitkeep

@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.table import Table
 
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
+from wc_forecast.data_sources.international_results import save_normalized_international_results
 from wc_forecast.features.build_features import save_match_features
 from wc_forecast.ledger.prediction_ledger import (
     append_candidate_edges_to_prediction_ledger,
@@ -36,6 +37,7 @@ from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_out
 from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
+DEFAULT_REAL_RESULTS_PATH = Path("data/processed/real_international_results.csv")
 DEFAULT_FEATURES_PATH = Path("data/processed/features.csv")
 DEFAULT_ELO_RATINGS_PATH = Path("outputs/elo_ratings.csv")
 DEFAULT_ELO_HISTORY_PATH = Path("outputs/elo_history.csv")
@@ -1122,6 +1124,30 @@ def size_stakes_command(
 
     console.print(table)
     console.print(f"[green]Stake sizing output written to:[/green] {destination}")
+
+
+@app.command("ingest-real-results")
+def ingest_real_results(
+    source_path: Annotated[
+        Path,
+        typer.Argument(help="Path to real international results CSV."),
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for normalized real results CSV.",
+        ),
+    ] = DEFAULT_REAL_RESULTS_PATH,
+) -> None:
+    """Normalize a real international-results CSV into the engine schema."""
+    destination = save_normalized_international_results(
+        source_path=source_path,
+        output_path=output_path,
+    )
+
+    console.print(f"[green]Real international results written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
