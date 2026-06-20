@@ -47,6 +47,7 @@ The current version includes:
 - Market-implied probability and expected value evaluation
 - Batch market odds slate evaluation and ranked edge output
 - Strategy policy filtering for actionable edges
+- Fractional Kelly stake sizing with exposure caps
 - Batch prediction ledger logging for candidate edges
 - Batch prediction settlement from final results and closing odds
 - Timestamped prediction ledger for forecast auditability
@@ -73,6 +74,7 @@ This executes:
 - market edge and expected value evaluation
 - batch market odds slate evaluation
 - strategy policy filtering
+- stake sizing
 - batch prediction ledger logging
 - batch prediction settlement
 - timestamped prediction ledger logging
@@ -226,7 +228,8 @@ Run the full MVP pipeline:
     python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
     python -m wc_forecast batch-evaluate-market data/sample/market_odds_sample.csv
     python -m wc_forecast apply-strategy-policy outputs/batch_market_edges.csv
-    python -m wc_forecast log-batch-predictions outputs/strategy_policy_edges.csv
+    python -m wc_forecast size-stakes outputs/strategy_policy_edges.csv
+    python -m wc_forecast log-batch-predictions outputs/stake_sizing_edges.csv
     python -m wc_forecast settle-batch-predictions data/sample/settlement_results_sample.csv
     python -m wc_forecast log-prediction Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
     PREDICTION_ID=$(tail -n 1 outputs/prediction_ledger.csv
