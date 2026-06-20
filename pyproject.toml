@@ -1,0 +1,22 @@
+[project]
+name = "world-cup-forecasting-engine"
+version = "0.1.0"
+description = "Quant-style probabilistic forecasting engine for FIFA World Cup matches."
+requires-python = ">=3.12"
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
