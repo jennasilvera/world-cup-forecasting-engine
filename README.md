@@ -47,6 +47,28 @@ The current version includes:
 - Markdown group-stage simulation report
 - Unit tests and linting
 
+## One-Command Demo
+
+Run the full reproducible demo pipeline:
+
+    make demo
+
+This executes:
+
+- historical result ingestion
+- Elo rating generation
+- pre-match feature generation
+- logistic-regression backtest
+- backtest report generation
+- Poisson expected-goals prediction
+- match prediction report generation
+- Monte Carlo group-stage simulation
+- group-stage simulation report generation
+
+You can also run quality checks with:
+
+    make check
+
 ## Documentation and Reports
 
 Key generated and maintained project documents:
