@@ -10,7 +10,10 @@ from rich.table import Table
 
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.features.build_features import save_match_features
-from wc_forecast.ledger.prediction_ledger import save_market_prediction_to_ledger
+from wc_forecast.ledger.prediction_ledger import (
+    save_market_prediction_to_ledger,
+    settle_prediction_ledger_row,
+)
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
 from wc_forecast.models.market import (
@@ -685,6 +688,77 @@ def log_prediction(
     )
 
     console.print(f"[green]Prediction logged to ledger:[/green] {destination}")
+
+
+@app.command("settle-prediction")
+def settle_prediction(
+    prediction_id: Annotated[
+        str,
+        typer.Argument(help="Prediction ID from the ledger."),
+    ],
+    final_home_score: Annotated[
+        int,
+        typer.Option(
+            "--final-home-score",
+            help="Final home/team A score.",
+        ),
+    ],
+    final_away_score: Annotated[
+        int,
+        typer.Option(
+            "--final-away-score",
+            help="Final away/team B score.",
+        ),
+    ],
+    ledger_path: Annotated[
+        Path,
+        typer.Option(
+            "--ledger-path",
+            help="Path to prediction ledger CSV.",
+        ),
+    ] = DEFAULT_PREDICTION_LEDGER_PATH,
+    closing_home_odds: Annotated[
+        float | None,
+        typer.Option(
+            "--closing-home-odds",
+            help="Optional closing decimal odds for home/team A win.",
+        ),
+    ] = None,
+    closing_draw_odds: Annotated[
+        float | None,
+        typer.Option(
+            "--closing-draw-odds",
+            help="Optional closing decimal odds for draw.",
+        ),
+    ] = None,
+    closing_away_odds: Annotated[
+        float | None,
+        typer.Option(
+            "--closing-away-odds",
+            help="Optional closing decimal odds for away/team B win.",
+        ),
+    ] = None,
+    stake: Annotated[
+        float,
+        typer.Option(
+            "--stake",
+            help="Flat stake used to calculate realized return.",
+        ),
+    ] = 1.0,
+) -> None:
+    """Settle a logged prediction with final result and realized return."""
+    destination = settle_prediction_ledger_row(
+        ledger_path=ledger_path,
+        prediction_id=prediction_id,
+        final_home_score=final_home_score,
+        final_away_score=final_away_score,
+        closing_home_odds=closing_home_odds,
+        closing_draw_odds=closing_draw_odds,
+        closing_away_odds=closing_away_odds,
+        stake=stake,
+    )
+
+    console.print(f"[green]Prediction ledger settled:[/green] {destination}")
 
 
 if __name__ == "__main__":

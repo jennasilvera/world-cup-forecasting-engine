@@ -6,7 +6,10 @@ from wc_forecast.ledger.prediction_ledger import (
     LEDGER_COLUMNS,
     append_prediction_ledger_row,
     build_prediction_ledger_row,
+    match_outcome_from_score,
+    realized_return_for_prediction,
     save_market_prediction_to_ledger,
+    settle_prediction_ledger_row,
 )
 from wc_forecast.models.market import calculate_market_edge, calculate_market_probabilities
 
@@ -165,3 +168,64 @@ def test_save_market_prediction_to_ledger_appends_forecast(tmp_path) -> None:
     assert len(saved) == 1
     assert saved.loc[0, "home_team"] == "Argentina"
     assert saved.loc[0, "away_team"] == "France"
+
+
+def test_match_outcome_from_score() -> None:
+    assert match_outcome_from_score(2, 1) == "home_win"
+    assert match_outcome_from_score(1, 1) == "draw"
+    assert match_outcome_from_score(0, 1) == "away_win"
+
+
+def test_realized_return_for_prediction() -> None:
+    assert realized_return_for_prediction(
+        best_outcome="draw",
+        final_outcome="draw",
+        home_odds=2.20,
+        draw_odds=3.40,
+        away_odds=3.50,
+    ) == 2.40
+
+    assert realized_return_for_prediction(
+        best_outcome="draw",
+        final_outcome="home_win",
+        home_odds=2.20,
+        draw_odds=3.40,
+        away_odds=3.50,
+    ) == -1.0
+
+
+def test_settle_prediction_ledger_row_updates_result(tmp_path) -> None:
+    results_path = tmp_path / "results.csv"
+    ledger_path = tmp_path / "prediction_ledger.csv"
+
+    _sample_results().to_csv(results_path, index=False)
+
+    save_market_prediction_to_ledger(
+        results_path=results_path,
+        ledger_path=ledger_path,
+        home_team="Argentina",
+        away_team="France",
+        home_odds=2.20,
+        draw_odds=3.40,
+        away_odds=3.50,
+        prediction_timestamp="2026-06-19T12:00:00+00:00",
+    )
+
+    ledger = pd.read_csv(ledger_path)
+    prediction_id = str(ledger.loc[0, "prediction_id"])
+
+    destination = settle_prediction_ledger_row(
+        ledger_path=ledger_path,
+        prediction_id=prediction_id,
+        final_home_score=1,
+        final_away_score=1,
+        closing_home_odds=2.10,
+        closing_draw_odds=3.25,
+        closing_away_odds=3.60,
+    )
+
+    settled = pd.read_csv(destination)
+
+    assert settled.loc[0, "final_outcome"] == "draw"
+    assert settled.loc[0, "realized_return"] == 2.40
+    assert settled.loc[0, "closing_draw_odds"] == 3.25
