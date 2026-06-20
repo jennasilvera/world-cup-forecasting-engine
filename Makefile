@@ -57,6 +57,9 @@ market-edge:
 batch-market:
 	$(PYTHON) -m wc_forecast batch-evaluate-market $(MARKET_ODDS_PATH)
 
+log-batch-predictions:
+	$(PYTHON) -m wc_forecast log-batch-predictions outputs/batch_market_edges.csv
+
 log-prediction:
 	$(PYTHON) -m wc_forecast log-prediction $(HOME_TEAM) $(AWAY_TEAM) --home-odds $(HOME_ODDS) --draw-odds $(DRAW_ODDS) --away-odds $(AWAY_ODDS)
 
@@ -78,7 +81,7 @@ simulate-group-stage:
 report-group-stage:
 	$(PYTHON) -m wc_forecast report-group-stage
 
-demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge batch-market log-prediction settle-prediction report-ledger simulate-group-stage report-group-stage
+demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge batch-market log-batch-predictions log-prediction settle-prediction report-ledger simulate-group-stage report-group-stage
 	@echo "Demo pipeline complete."
 
 clean:
