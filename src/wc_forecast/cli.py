@@ -11,6 +11,7 @@ from wc_forecast.data.ingest_results import load_historical_results, save_proces
 from wc_forecast.features.build_features import save_match_features
 from wc_forecast.models.classifier import save_logistic_backtest
 from wc_forecast.models.elo import EloModel
+from wc_forecast.reporting.prediction_report import save_backtest_report
 
 DEFAULT_PROCESSED_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_FEATURES_PATH = Path("data/processed/features.csv")
@@ -18,6 +19,7 @@ DEFAULT_ELO_RATINGS_PATH = Path("outputs/elo_ratings.csv")
 DEFAULT_ELO_HISTORY_PATH = Path("outputs/elo_history.csv")
 DEFAULT_LOGISTIC_PREDICTIONS_PATH = Path("outputs/logistic_backtest_predictions.csv")
 DEFAULT_LOGISTIC_METRICS_PATH = Path("outputs/logistic_backtest_metrics.csv")
+DEFAULT_BACKTEST_REPORT_PATH = Path("reports/logistic_backtest_report.md")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -171,6 +173,38 @@ def backtest_logistic(
     console.print(table)
     console.print(f"[green]Predictions written to:[/green] {predictions_output}")
     console.print(f"[green]Metrics written to:[/green] {metrics_output}")
+
+
+@app.command("report-backtest")
+def report_backtest(
+    predictions_path: Annotated[
+        Path,
+        typer.Argument(help="Path to match-level backtest predictions CSV."),
+    ] = DEFAULT_LOGISTIC_PREDICTIONS_PATH,
+    metrics_path: Annotated[
+        Path,
+        typer.Option(
+            "--metrics-path",
+            help="Path to backtest metrics CSV.",
+        ),
+    ] = DEFAULT_LOGISTIC_METRICS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for generated Markdown report.",
+        ),
+    ] = DEFAULT_BACKTEST_REPORT_PATH,
+) -> None:
+    """Generate a recruiter-facing Markdown backtest report."""
+    destination = save_backtest_report(
+        predictions_path=predictions_path,
+        metrics_path=metrics_path,
+        output_path=output_path,
+    )
+
+    console.print(f"[green]Backtest report written to:[/green] {destination}")
 
 
 if __name__ == "__main__":
