@@ -150,10 +150,12 @@ transparent, and testable.
 
 The latest backtest produced {summary_sentence}.
 
-Because this project is currently using a small reproducible sample dataset, the
-absolute metric values should not be interpreted as evidence of real predictive
-power. At this stage, the report demonstrates that the pipeline can train,
-predict, score, and generate auditable outputs end-to-end.
+The latest run may use either the small repository sample dataset or a larger
+real international-results dataset, depending on the local processed data file.
+Metric values should be interpreted in the context of the data source, feature
+set, train/test split, and known model limitations. The report demonstrates that
+the pipeline can train, predict, score, and generate auditable outputs
+end-to-end.
 
 ## Metrics
 
@@ -189,9 +191,10 @@ This prevents final scores from leaking into pre-match features.
 
 ## Current Limitations
 
-- The sample dataset is intentionally small and exists only to make the repo
-  runnable for reviewers.
-- Real evaluation requires a larger historical international-match dataset.
+- The baseline can run on either sample data or a larger real international
+  results dataset.
+- The current backtest uses a simple chronological split and should be upgraded
+  with explicit train/evaluation cutoff dates.
 - Current features are mostly team-strength and match-context features.
 - Player availability, injuries, travel, rest, and market odds are planned
   future upgrades.
