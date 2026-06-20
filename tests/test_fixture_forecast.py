@@ -164,3 +164,32 @@ def test_build_fixture_forecast_features_resolves_team_aliases() -> None:
     )
 
     assert fixture_features.loc[0, "away_elo_rating"] == pytest.approx(1701.2)
+    assert fixture_features.loc[0, "away_rating_source"] == "alias_lookup"
+    assert fixture_features.loc[0, "rating_warning"] == ""
+
+
+def test_build_fixture_forecast_features_warns_on_unknown_team_rating() -> None:
+    fixtures = pd.DataFrame(
+        {
+            "date": ["2026-06-20"],
+            "home_team": ["Ecuador"],
+            "away_team": ["Atlantis"],
+            "tournament": ["FIFA World Cup"],
+            "neutral": [True],
+        }
+    )
+    ratings = pd.DataFrame(
+        {
+            "team": ["Ecuador"],
+            "elo_rating": [1860.4],
+        }
+    )
+
+    fixture_features = build_fixture_forecast_features(
+        fixtures=fixtures,
+        ratings=ratings,
+    )
+
+    assert fixture_features.loc[0, "away_elo_rating"] == pytest.approx(1500.0)
+    assert fixture_features.loc[0, "away_rating_source"] == "fallback_1500"
+    assert fixture_features.loc[0, "rating_warning"] == "fallback_rating_used:Atlantis"

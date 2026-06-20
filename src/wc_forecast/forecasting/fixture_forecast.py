@@ -38,6 +38,9 @@ FORECAST_OUTPUT_COLUMNS = [
     "neutral",
     "home_elo_rating",
     "away_elo_rating",
+    "home_rating_source",
+    "away_rating_source",
+    "rating_warning",
     "prob_home_win",
     "prob_draw",
     "prob_away_win",
@@ -106,6 +109,8 @@ def build_fixture_forecast_features(
     for fixture in fixture_features.itertuples(index=False):
         home_rating = _team_rating(ratings_lookup, fixture.home_team)
         away_rating = _team_rating(ratings_lookup, fixture.away_team)
+        home_rating_source = _rating_source(ratings_lookup, fixture.home_team)
+        away_rating_source = _rating_source(ratings_lookup, fixture.away_team)
         home_expected = _elo_expected_score(home_rating, away_rating)
         away_expected = 1.0 - home_expected
 
@@ -136,6 +141,14 @@ def build_fixture_forecast_features(
             "neutral": fixture.neutral,
             "home_elo_rating": home_rating,
             "away_elo_rating": away_rating,
+            "home_rating_source": home_rating_source,
+            "away_rating_source": away_rating_source,
+            "rating_warning": _rating_warning(
+                home_team=str(fixture.home_team),
+                away_team=str(fixture.away_team),
+                home_rating_source=home_rating_source,
+                away_rating_source=away_rating_source,
+            ),
         }
         row.update(feature_values)
         rows.append(row)
@@ -175,6 +188,9 @@ def forecast_fixtures(
             "neutral",
             "home_elo_rating",
             "away_elo_rating",
+            "home_rating_source",
+            "away_rating_source",
+            "rating_warning",
         ]
     ].copy()
 
@@ -259,6 +275,43 @@ def _ratings_lookup(ratings: pd.DataFrame) -> dict[str, float]:
         str(row.team).strip(): float(row.elo_rating)
         for row in ratings.itertuples(index=False)
     }
+
+
+def _rating_source(ratings_lookup: dict[str, float], team: str) -> str:
+    """Return whether a rating came from direct lookup, alias lookup, or fallback."""
+
+    cleaned = str(team).strip()
+    normalized_team = _normalize_team_name(cleaned)
+
+    if normalized_team in ratings_lookup and normalized_team != cleaned:
+        return "alias_lookup"
+
+    if normalized_team in ratings_lookup:
+        return "rating_lookup"
+
+    return "fallback_1500"
+
+
+def _rating_warning(
+    home_team: str,
+    away_team: str,
+    home_rating_source: str,
+    away_rating_source: str,
+) -> str:
+    """Return a warning when a forecast uses fallback Elo ratings."""
+
+    fallback_teams = []
+
+    if home_rating_source == "fallback_1500":
+        fallback_teams.append(home_team)
+
+    if away_rating_source == "fallback_1500":
+        fallback_teams.append(away_team)
+
+    if not fallback_teams:
+        return ""
+
+    return "fallback_rating_used:" + ",".join(fallback_teams)
 
 
 def _team_rating(ratings_lookup: dict[str, float], team: str) -> float:
