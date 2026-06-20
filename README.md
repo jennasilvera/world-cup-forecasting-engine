@@ -45,6 +45,7 @@ The current version includes:
 - Monte Carlo group-stage simulation
 - Group advancement probability outputs
 - Market-implied probability and expected value evaluation
+- Timestamped prediction ledger for forecast auditability
 - Markdown group-stage simulation report
 - Unit tests and linting
 
@@ -64,6 +65,7 @@ This executes:
 - Poisson expected-goals prediction
 - match prediction report generation
 - market edge and expected value evaluation
+- timestamped prediction ledger logging
 - Monte Carlo group-stage simulation
 - group-stage simulation report generation
 
@@ -209,6 +211,7 @@ Run the full MVP pipeline:
     python -m wc_forecast predict-poisson Argentina France
     python -m wc_forecast report-match Argentina France
     python -m wc_forecast evaluate-market Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
+    python -m wc_forecast log-prediction Argentina France --home-odds 2.20 --draw-odds 3.40 --away-odds 3.50
     python -m wc_forecast simulate-group-stage --n-simulations 1000
     python -m wc_forecast report-group-stage
 

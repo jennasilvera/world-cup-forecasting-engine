@@ -48,13 +48,16 @@ report-match:
 market-edge:
 	$(PYTHON) -m wc_forecast evaluate-market $(HOME_TEAM) $(AWAY_TEAM) --home-odds $(HOME_ODDS) --draw-odds $(DRAW_ODDS) --away-odds $(AWAY_ODDS)
 
+log-prediction:
+	$(PYTHON) -m wc_forecast log-prediction $(HOME_TEAM) $(AWAY_TEAM) --home-odds $(HOME_ODDS) --draw-odds $(DRAW_ODDS) --away-odds $(AWAY_ODDS)
+
 simulate-group-stage:
 	$(PYTHON) -m wc_forecast simulate-group-stage --n-simulations $(N_SIMULATIONS)
 
 report-group-stage:
 	$(PYTHON) -m wc_forecast report-group-stage
 
-demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge simulate-group-stage report-group-stage
+demo: ingest build-elo build-features backtest report-backtest poisson report-match market-edge log-prediction simulate-group-stage report-group-stage
 	@echo "Demo pipeline complete."
 
 clean:
