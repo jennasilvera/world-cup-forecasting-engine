@@ -19,7 +19,8 @@ from wc_forecast.features.build_features import (
 
 OUTCOME_ORDER = ["home_win", "draw", "away_win"]
 PREDICTION_COLUMNS = [f"prob_{outcome}" for outcome in OUTCOME_ORDER]
-DEFAULT_RECENCY_HALF_LIFE_DAYS = 1_460.0
+DEFAULT_RECENCY_HALF_LIFE_DAYS = 2_190.0
+DEFAULT_LOGISTIC_C = 4.0
 SUPPORTED_MODEL_TYPES = {"logistic", "gradient_boosting", "random_forest"}
 
 
@@ -31,7 +32,10 @@ class BacktestResult:
     metrics: pd.DataFrame
 
 
-def _make_classifier(model_type: str, logistic_c: float = 1.0) -> object:
+def _make_classifier(
+    model_type: str,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
+) -> object:
     """Create a supported classification model."""
 
     if model_type == "logistic":
@@ -182,7 +186,7 @@ def train_logistic_regression(
     train_features: pd.DataFrame,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
-    logistic_c: float = 1.0,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
 ) -> Pipeline:
     """Train a supported three-class football outcome model."""
 
@@ -311,7 +315,7 @@ def run_logistic_backtest(
     cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
-    logistic_c: float = 1.0,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
 ) -> BacktestResult:
     """Run a chronological logistic-regression backtest."""
 
@@ -352,7 +356,7 @@ def save_logistic_backtest(
     cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
-    logistic_c: float = 1.0,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
 ) -> BacktestResult:
     """Load features, run backtest, and save predictions and metrics."""
 

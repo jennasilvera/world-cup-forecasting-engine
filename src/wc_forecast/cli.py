@@ -19,7 +19,11 @@ from wc_forecast.ledger.prediction_ledger import (
     settle_prediction_ledger_row,
 )
 from wc_forecast.models.batch_market import save_market_odds_slate_evaluation
-from wc_forecast.models.classifier import save_logistic_backtest
+from wc_forecast.models.classifier import (
+    DEFAULT_LOGISTIC_C,
+    DEFAULT_RECENCY_HALF_LIFE_DAYS,
+    save_logistic_backtest,
+)
 from wc_forecast.models.elo import EloModel
 from wc_forecast.models.market import (
     calculate_market_edge,
@@ -231,14 +235,14 @@ def ablate_features_command(
             "--sample-weight-half-life-days",
             help="Optional recency half-life in days for training weights.",
         ),
-    ] = None,
+    ] = DEFAULT_RECENCY_HALF_LIFE_DAYS,
     logistic_c: Annotated[
         float,
         typer.Option(
             "--logistic-c",
             help="Inverse regularization strength for logistic model.",
         ),
-    ] = 1.0,
+    ] = DEFAULT_LOGISTIC_C,
 ) -> None:
     """Run rolling feature ablation validation."""
 
@@ -521,7 +525,7 @@ def backtest_logistic(
             "--logistic-c",
             help="Inverse regularization strength for logistic model.",
         ),
-    ] = 1.0,
+    ] = DEFAULT_LOGISTIC_C,
 
 ) -> None:
     """Run a chronological logistic-regression backtest."""
@@ -781,7 +785,7 @@ def forecast_fixtures_command(
             "--logistic-c",
             help="Inverse regularization strength for logistic model.",
         ),
-    ] = 1.0,
+    ] = DEFAULT_LOGISTIC_C,
 ) -> None:
     """Forecast a slate of FIFA World Cup fixtures."""
     forecasts = save_fixture_forecasts_from_results(

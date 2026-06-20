@@ -11,6 +11,7 @@ from wc_forecast.features.build_features import (
     feature_default_value,
 )
 from wc_forecast.models.classifier import (
+    DEFAULT_LOGISTIC_C,
     PREDICTION_COLUMNS,
     train_logistic_regression,
 )
@@ -135,7 +136,7 @@ def train_model_before_cutoff(
     train_cutoff_date: str,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
-    logistic_c: float = 1.0,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
 ) -> Pipeline:
     """Train model using only rows before the forecast cutoff date."""
 
@@ -247,7 +248,7 @@ def forecast_fixtures(
     train_cutoff_date: str,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
-    logistic_c: float = 1.0,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
     form_lookup: dict[str, dict[str, float]] | None = None,
 ) -> pd.DataFrame:
     """Train before cutoff and forecast a fixture slate."""
@@ -314,7 +315,7 @@ def save_fixture_forecasts(
     train_cutoff_date: str,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
-    logistic_c: float = 1.0,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
 ) -> pd.DataFrame:
     """Load inputs, forecast fixtures, and save forecast CSV."""
 
@@ -348,7 +349,7 @@ def save_fixture_forecasts_from_results(
     rating_cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
-    logistic_c: float = 1.0,
+    logistic_c: float = DEFAULT_LOGISTIC_C,
 ) -> pd.DataFrame:
     """Load inputs, build cutoff-safe ratings, forecast fixtures, and save CSV."""
 
