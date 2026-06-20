@@ -387,7 +387,15 @@ def append_candidate_edges_to_prediction_ledger(
     if "decision" not in batch_edges.columns:
         raise ValueError("Batch market edge file missing decision column.")
 
-    candidate_edges = batch_edges[batch_edges["decision"] == "candidate_edge"].copy()
+    if "strategy_action" in batch_edges.columns:
+        candidate_edges = batch_edges[
+            (batch_edges["decision"] == "candidate_edge")
+            & (batch_edges["strategy_action"] == "actionable")
+        ].copy()
+    else:
+        candidate_edges = batch_edges[
+            batch_edges["decision"] == "candidate_edge"
+        ].copy()
 
     destination = Path(ledger_path)
     destination.parent.mkdir(parents=True, exist_ok=True)

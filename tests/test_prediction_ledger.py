@@ -356,3 +356,28 @@ def test_settle_prediction_ledger_from_results_updates_matching_rows(
     assert set(settled["final_outcome"]) == {"draw"}
     assert set(settled["realized_return"]) == {2.40, 2.30}
     assert set(settled["closing_draw_odds"]) == {3.25, 3.10}
+
+
+def test_append_candidate_edges_respects_strategy_action(tmp_path) -> None:
+    batch_edges_path = tmp_path / "strategy_policy_edges.csv"
+    ledger_path = tmp_path / "prediction_ledger.csv"
+
+    edges = _sample_batch_edges()
+    edges["strategy_action"] = ["filtered", "actionable"]
+    edges["strategy_reason"] = [
+        "model_disagreement_above_limit",
+        "passes_policy",
+    ]
+    edges.to_csv(batch_edges_path, index=False)
+
+    destination = append_candidate_edges_to_prediction_ledger(
+        batch_edges_path=batch_edges_path,
+        ledger_path=ledger_path,
+        prediction_timestamp="2026-06-19T12:00:00+00:00",
+    )
+
+    saved = pd.read_csv(destination)
+
+    assert len(saved) == 1
+    assert saved.loc[0, "home_team"] == "Brazil"
+    assert saved.loc[0, "away_team"] == "Spain"
