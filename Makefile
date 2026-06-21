@@ -102,3 +102,40 @@ clean:
 	rm -f reports/match_prediction_report.md
 	rm -f reports/group_stage_simulation_report.md
 	rm -f data/processed/*.csv
+
+.PHONY: validate forecast-sample forecast-report forecast-audit forecast-artifacts forecast-workflow
+
+validate:
+	ruff check .
+	pytest
+	python -m wc_forecast health
+
+forecast-sample:
+	python -m wc_forecast forecast-upcoming-fixtures \
+		data/sample/world_cup_2026_fixtures_sample.csv \
+		--from-date 2026-06-20 \
+		--train-cutoff-date 2026-01-01 \
+		--rating-cutoff-date 2026-06-19 \
+		--output outputs/world_cup_2026_upcoming_forecasts.csv
+
+forecast-report:
+	python -m wc_forecast summarize-upcoming-forecasts \
+		outputs/world_cup_2026_upcoming_forecasts.csv \
+		--output outputs/world_cup_2026_upcoming_forecast_report.md
+
+forecast-audit:
+	python -m wc_forecast audit-upcoming-forecasts \
+		outputs/world_cup_2026_upcoming_forecasts.csv \
+		--output outputs/world_cup_2026_upcoming_forecast_audit.csv
+
+forecast-artifacts:
+	python -m wc_forecast list-forecast-artifacts \
+		--output outputs/forecast_artifact_index.csv
+
+forecast-workflow:
+	python -m wc_forecast run-upcoming-world-cup-forecast \
+		--from-date 2026-06-20 \
+		--train-cutoff-date 2026-01-01 \
+		--rating-cutoff-date 2026-06-19 \
+		--output outputs/world_cup_2026_upcoming_forecasts.csv
+

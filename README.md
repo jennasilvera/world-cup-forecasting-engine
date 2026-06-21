@@ -617,6 +617,34 @@ The report highlights:
 
 The one-command workflow also generates this report automatically.
 
+## Makefile Shortcuts
+
+Useful project commands:
+
+    make validate
+
+Runs Ruff, pytest, and the package health check.
+
+    make forecast-sample
+
+Runs upcoming fixture forecasts using the committed sample World Cup fixture file.
+
+    make forecast-report
+
+Generates the Markdown upcoming forecast report.
+
+    make forecast-audit
+
+Generates the upcoming forecast audit CSV.
+
+    make forecast-artifacts
+
+Generates the forecast artifact index.
+
+    make forecast-workflow
+
+Runs the full upcoming World Cup forecast workflow.
+
 ## Daily Forecast Runbook
 
 For the full analyst/operator workflow, see [`docs/daily_forecast_runbook.md`](docs/daily_forecast_runbook.md).
