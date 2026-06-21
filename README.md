@@ -570,6 +570,23 @@ This project demonstrates more than a basic machine learning model. It implement
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
 
+## Upcoming Forecast Summary Report
+
+After generating upcoming fixture forecasts, create a Markdown summary report:
+
+    python -m wc_forecast summarize-upcoming-forecasts \
+      outputs/world_cup_2026_upcoming_forecasts.csv \
+      --output outputs/world_cup_2026_upcoming_forecast_report.md
+
+The report highlights:
+
+- Highest-confidence forecasts
+- Most uncertain matches
+- Potential lower-rated-team upset spots
+- Rating warnings, if any
+
+The one-command workflow also generates this report automatically.
+
 ## One-Command Upcoming World Cup Forecast
 
 To run the full upcoming World Cup forecast workflow:

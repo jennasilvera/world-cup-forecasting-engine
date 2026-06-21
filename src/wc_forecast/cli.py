@@ -43,6 +43,7 @@ from wc_forecast.reporting.match_report import (
     save_match_prediction_report,
 )
 from wc_forecast.reporting.prediction_report import save_backtest_report
+from wc_forecast.reports.upcoming_forecast_report import save_upcoming_forecast_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
 from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
@@ -92,6 +93,9 @@ DEFAULT_WORLD_CUP_2026_FIXTURES_PATH = Path("data/processed/world_cup_2026_fixtu
 DEFAULT_UPCOMING_FORECAST_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH = Path(
     "outputs/world_cup_2026_upcoming_forecasts.csv"
+)
+DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH = Path(
+    "outputs/world_cup_2026_upcoming_forecast_report.md"
 )
 
 app = typer.Typer(
@@ -733,6 +737,55 @@ def report_match(
 
 
 
+
+@app.command("summarize-upcoming-forecasts")
+def summarize_upcoming_forecasts_command(
+    forecasts_path: Annotated[
+        Path,
+        typer.Argument(help="Path to upcoming fixture forecast CSV."),
+    ] = DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for Markdown summary report.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH,
+    max_rows: Annotated[
+        int,
+        typer.Option(
+            "--max-rows",
+            help="Maximum rows per report section.",
+        ),
+    ] = 10,
+    upset_probability_threshold: Annotated[
+        float,
+        typer.Option(
+            "--upset-threshold",
+            help="Minimum lower-rated-team win probability for upset watch.",
+        ),
+    ] = 0.30,
+) -> None:
+    """Create a Markdown summary report from upcoming fixture forecasts."""
+
+    if not forecasts_path.exists():
+        console.print(f"[red]Forecast file not found:[/red] {forecasts_path}")
+        console.print()
+        console.print("Create it by running:")
+        console.print("  python -m wc_forecast run-upcoming-world-cup-forecast")
+        raise typer.Exit(code=1)
+
+    save_upcoming_forecast_report(
+        forecasts_path=forecasts_path,
+        output_path=output_path,
+        max_rows=max_rows,
+        upset_probability_threshold=upset_probability_threshold,
+    )
+
+    console.print(f"Upcoming forecast report written to: {output_path}")
+
+
 @app.command("run-upcoming-world-cup-forecast")
 def run_upcoming_world_cup_forecast_command(
     raw_fixtures_path: Annotated[
@@ -892,9 +945,20 @@ def run_upcoming_world_cup_forecast_command(
 
     run_step("3. Forecast upcoming World Cup fixtures", forecast_args)
 
+    run_step(
+        "4. Summarize upcoming fixture forecasts",
+        [
+            "summarize-upcoming-forecasts",
+            str(output_path),
+            "--output",
+            str(DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH),
+        ],
+    )
+
     console.print()
     console.print("[green]Upcoming World Cup forecast workflow complete.[/green]")
     console.print(f"Forecast output: {output_path}")
+    console.print(f"Report output: {DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH}")
 
 
 @app.command("ingest-world-cup-fixtures")
