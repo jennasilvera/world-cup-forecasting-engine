@@ -757,17 +757,23 @@ def list_forecast_artifacts_command(
     artifact_index = save_artifact_index(output_path=output_path)
 
     table = Table(title="Forecast Artifact Index")
-    table.add_column("Artifact", overflow="fold")
+    table.add_column("Artifact")
     table.add_column("Exists", justify="center")
     table.add_column("Size", justify="right")
-    table.add_column("Modified At", overflow="fold")
+    table.add_column("Modified At")
 
     for row in artifact_index.to_dict("records"):
+        modified_at = ""
+        if not pd.isna(row["modified_at"]):
+            modified_at = pd.Timestamp(row["modified_at"]).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
         table.add_row(
-            str(row["path"]),
+            Path(str(row["path"])).name,
             "yes" if row["exists"] else "no",
-            "" if pd.isna(row["size_bytes"]) else str(int(row["size_bytes"])),
-            "" if pd.isna(row["modified_at"]) else str(row["modified_at"]),
+            "" if pd.isna(row["size_bytes"]) else f'{int(row["size_bytes"]):,}',
+            modified_at,
         )
 
     console.print(table)
