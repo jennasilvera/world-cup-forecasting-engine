@@ -572,14 +572,18 @@ The main value of the project is the architecture: it shows how a prediction sys
 
 ## Reproducible Demo
 
-Run the full modeling workflow with:
+Run the full modeling workflow with an existing processed results file:
 
     ./scripts/run_demo.sh
+
+Or provide a raw international results CSV path:
+
+    ./scripts/run_demo.sh path/to/results.csv
 
 The demo performs:
 
 1. Project health check
-2. Real international results ingestion
+2. Results data preparation
 3. Feature engineering
 4. Tuned rolling backtest
 5. Feature ablation validation

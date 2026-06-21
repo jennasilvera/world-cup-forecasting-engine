@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+RESULTS_SOURCE="${1:-}"
+PROCESSED_RESULTS="data/processed/results.csv"
+
 echo "== World Cup Forecasting Engine Demo =="
 
 echo
@@ -8,8 +11,32 @@ echo "1. Health check"
 python -m wc_forecast health
 
 echo
-echo "2. Ingest real international results"
-python -m wc_forecast ingest-real-results
+echo "2. Prepare international results data"
+
+if [[ -n "$RESULTS_SOURCE" ]]; then
+  if [[ ! -f "$RESULTS_SOURCE" ]]; then
+    echo "ERROR: Results source not found: $RESULTS_SOURCE"
+    echo "Usage: ./scripts/run_demo.sh path/to/results.csv"
+    exit 1
+  fi
+
+  echo "Ingesting raw results source: $RESULTS_SOURCE"
+  python -m wc_forecast ingest-real-results "$RESULTS_SOURCE"
+
+elif [[ -f "$PROCESSED_RESULTS" ]]; then
+  echo "No raw source supplied. Using existing processed results:"
+  echo "$PROCESSED_RESULTS"
+
+else
+  echo "ERROR: No raw results source supplied and no processed results found."
+  echo
+  echo "Run one of:"
+  echo "  ./scripts/run_demo.sh path/to/results.csv"
+  echo
+  echo "or first create:"
+  echo "  data/processed/results.csv"
+  exit 1
+fi
 
 echo
 echo "3. Build model features"
