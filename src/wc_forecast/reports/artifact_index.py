@@ -7,6 +7,7 @@ import pandas as pd
 DEFAULT_ARTIFACT_PATHS = [
     Path("outputs/world_cup_2026_upcoming_forecasts.csv"),
     Path("outputs/world_cup_2026_upcoming_forecast_report.md"),
+    Path("outputs/world_cup_2026_upcoming_forecast_audit.csv"),
     Path("outputs/rolling_backtest_metrics.csv"),
     Path("outputs/feature_ablation_results.csv"),
 ]
@@ -15,6 +16,9 @@ DEFAULT_ARTIFACT_LABELS = {
     Path("outputs/world_cup_2026_upcoming_forecasts.csv"): "Upcoming Forecast CSV",
     Path("outputs/world_cup_2026_upcoming_forecast_report.md"): (
         "Upcoming Forecast Report"
+    ),
+    Path("outputs/world_cup_2026_upcoming_forecast_audit.csv"): (
+        "Upcoming Forecast Audit"
     ),
     Path("outputs/rolling_backtest_metrics.csv"): "Rolling Backtest Metrics",
     Path("outputs/feature_ablation_results.csv"): "Feature Ablation Results",

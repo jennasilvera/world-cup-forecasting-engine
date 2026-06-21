@@ -44,6 +44,7 @@ from wc_forecast.reporting.match_report import (
 )
 from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.reports.artifact_index import save_artifact_index
+from wc_forecast.reports.forecast_audit import save_forecast_audit
 from wc_forecast.reports.upcoming_forecast_report import save_upcoming_forecast_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
@@ -99,6 +100,9 @@ DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH = Path(
     "outputs/world_cup_2026_upcoming_forecast_report.md"
 )
 DEFAULT_ARTIFACT_INDEX_PATH = Path("outputs/forecast_artifact_index.csv")
+DEFAULT_WORLD_CUP_2026_FORECAST_AUDIT_PATH = Path(
+    "outputs/world_cup_2026_upcoming_forecast_audit.csv"
+)
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -741,6 +745,47 @@ def report_match(
 
 
 
+
+@app.command("audit-upcoming-forecasts")
+def audit_upcoming_forecasts_command(
+    forecasts_path: Annotated[
+        Path,
+        typer.Argument(help="Path to upcoming fixture forecast CSV."),
+    ] = DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for forecast audit CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_FORECAST_AUDIT_PATH,
+) -> None:
+    """Create a compact audit summary for upcoming fixture forecasts."""
+
+    if not forecasts_path.exists():
+        console.print(f"[red]Forecast file not found:[/red] {forecasts_path}")
+        console.print()
+        console.print("Create it by running:")
+        console.print("  python -m wc_forecast run-upcoming-world-cup-forecast")
+        raise typer.Exit(code=1)
+
+    audit = save_forecast_audit(
+        forecasts_path=forecasts_path,
+        output_path=output_path,
+    )
+
+    table = Table(title="Upcoming Forecast Audit")
+    table.add_column("Metric")
+    table.add_column("Value")
+
+    for row in audit.to_dict("records"):
+        table.add_row(str(row["metric"]), str(row["value"]))
+
+    console.print(table)
+    console.print(f"Forecast audit written to: {output_path}")
+
+
 @app.command("list-forecast-artifacts")
 def list_forecast_artifacts_command(
     output_path: Annotated[
@@ -998,7 +1043,17 @@ def run_upcoming_world_cup_forecast_command(
     )
 
     run_step(
-        "5. Index generated forecast artifacts",
+        "5. Audit upcoming fixture forecasts",
+        [
+            "audit-upcoming-forecasts",
+            str(output_path),
+            "--output",
+            str(DEFAULT_WORLD_CUP_2026_FORECAST_AUDIT_PATH),
+        ],
+    )
+
+    run_step(
+        "6. Index generated forecast artifacts",
         [
             "list-forecast-artifacts",
             "--output",
@@ -1010,6 +1065,7 @@ def run_upcoming_world_cup_forecast_command(
     console.print("[green]Upcoming World Cup forecast workflow complete.[/green]")
     console.print(f"Forecast output: {output_path}")
     console.print(f"Report output: {DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH}")
+    console.print(f"Audit output: {DEFAULT_WORLD_CUP_2026_FORECAST_AUDIT_PATH}")
     console.print(f"Artifact index: {DEFAULT_ARTIFACT_INDEX_PATH}")
 
 

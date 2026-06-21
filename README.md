@@ -570,6 +570,25 @@ This project demonstrates more than a basic machine learning model. It implement
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
 
+## Upcoming Forecast Audit
+
+To create a compact audit summary for upcoming fixture predictions:
+
+    python -m wc_forecast audit-upcoming-forecasts \
+      outputs/world_cup_2026_upcoming_forecasts.csv \
+      --output outputs/world_cup_2026_upcoming_forecast_audit.csv
+
+The audit summarizes:
+
+- Forecast count
+- Average confidence
+- Highest- and lowest-confidence matches
+- Rating warning count
+- Alias lookup count
+- Predicted outcome distribution
+
+The one-command workflow also generates this audit automatically.
+
 ## Forecast Artifact Index
 
 To list the generated forecast and validation outputs:
