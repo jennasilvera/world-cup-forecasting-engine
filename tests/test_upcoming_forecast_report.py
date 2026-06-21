@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pandas as pd
 import pytest
+
 from wc_forecast.reports.upcoming_forecast_report import (
     build_upcoming_forecast_report,
     save_upcoming_forecast_report,
