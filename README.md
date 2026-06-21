@@ -570,6 +570,26 @@ This project demonstrates more than a basic machine learning model. It implement
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
 
+## One-Command Upcoming World Cup Forecast
+
+To run the full upcoming World Cup forecast workflow:
+
+    python -m wc_forecast run-upcoming-world-cup-forecast \
+      --from-date 2026-06-20 \
+      --train-cutoff-date 2026-01-01 \
+      --rating-cutoff-date 2026-06-19 \
+      --output outputs/world_cup_2026_upcoming_forecasts.csv
+
+This command:
+
+1. Ingests `data/raw/world_cup_2026_fixtures.csv` if present
+2. Falls back to an existing `data/processed/world_cup_2026_fixtures.csv`
+3. Builds the feature table
+4. Forecasts all upcoming known-team World Cup fixtures
+5. Writes `outputs/world_cup_2026_upcoming_forecasts.csv`
+
+Use `--skip-build-features` if the feature table is already current.
+
 ## World Cup Fixture Schedule Ingestion
 
 To forecast all upcoming World Cup 2026 matches, first normalize a full raw fixture schedule:

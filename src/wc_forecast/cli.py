@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -728,6 +730,171 @@ def report_match(
     console.print(f"[green]Match report written to:[/green] {report_destination}")
 
 
+
+
+
+@app.command("run-upcoming-world-cup-forecast")
+def run_upcoming_world_cup_forecast_command(
+    raw_fixtures_path: Annotated[
+        Path,
+        typer.Option(
+            "--raw-fixtures",
+            help="Path to raw World Cup 2026 fixtures CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_RAW_FIXTURES_PATH,
+    fixtures_path: Annotated[
+        Path,
+        typer.Option(
+            "--fixtures",
+            help="Path to processed World Cup 2026 fixtures CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_FIXTURES_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for upcoming fixture forecasts CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH,
+    from_date: Annotated[
+        str | None,
+        typer.Option(
+            "--from-date",
+            help="Forecast fixtures on or after this date. Defaults to today.",
+        ),
+    ] = None,
+    through_date: Annotated[
+        str | None,
+        typer.Option(
+            "--through-date",
+            help="Optional final fixture date to include.",
+        ),
+    ] = None,
+    train_cutoff_date: Annotated[
+        str,
+        typer.Option(
+            "--train-cutoff-date",
+            help="Train only on matches before this date.",
+        ),
+    ] = "2026-01-01",
+    rating_cutoff_date: Annotated[
+        str | None,
+        typer.Option(
+            "--rating-cutoff-date",
+            help="Use ratings/form built only from results before this date.",
+        ),
+    ] = None,
+    sample_weight_half_life_days: Annotated[
+        float | None,
+        typer.Option(
+            "--sample-weight-half-life-days",
+            help="Optional recency half-life in days for training weights.",
+        ),
+    ] = DEFAULT_RECENCY_HALF_LIFE_DAYS,
+    model_type: Annotated[
+        str,
+        typer.Option(
+            "--model-type",
+            help="Model type: logistic, gradient_boosting, or random_forest.",
+        ),
+    ] = "logistic",
+    logistic_c: Annotated[
+        float,
+        typer.Option(
+            "--logistic-c",
+            help="Inverse regularization strength for logistic model.",
+        ),
+    ] = DEFAULT_LOGISTIC_C,
+    skip_build_features: Annotated[
+        bool,
+        typer.Option(
+            "--skip-build-features",
+            help="Skip feature rebuilding before forecasting.",
+        ),
+    ] = False,
+) -> None:
+    """Run the full upcoming World Cup forecast workflow."""
+
+    def run_step(label: str, args: list[str]) -> None:
+        console.print()
+        console.print(f"[bold]{label}[/bold]")
+        subprocess.run(
+            [sys.executable, "-m", "wc_forecast", *args],
+            check=True,
+        )
+
+    if raw_fixtures_path.exists():
+        run_step(
+            "1. Ingest World Cup fixture schedule",
+            [
+                "ingest-world-cup-fixtures",
+                str(raw_fixtures_path),
+                "--output",
+                str(fixtures_path),
+            ],
+        )
+    elif fixtures_path.exists():
+        console.print()
+        console.print("1. Fixture schedule")
+        console.print(f"Using existing processed fixture file: {fixtures_path}")
+    else:
+        console.print(f"[red]Fixture file not found:[/red] {fixtures_path}")
+        console.print(f"[red]Raw fixture file not found:[/red] {raw_fixtures_path}")
+        console.print()
+        console.print("Create one of these files, then rerun this command:")
+        console.print(f"  {raw_fixtures_path}")
+        console.print(f"  {fixtures_path}")
+        console.print()
+        console.print("Or test with:")
+        console.print(
+            "  python -m wc_forecast forecast-upcoming-fixtures "
+            "data/sample/world_cup_2026_fixtures_sample.csv"
+        )
+        raise typer.Exit(code=1)
+
+    if skip_build_features:
+        console.print()
+        console.print("2. Feature build")
+        console.print("Skipping feature rebuild.")
+    else:
+        run_step("2. Build model features", ["build-features"])
+
+    forecast_args = [
+        "forecast-upcoming-fixtures",
+        str(fixtures_path),
+        "--train-cutoff-date",
+        train_cutoff_date,
+        "--output",
+        str(output_path),
+        "--model-type",
+        model_type,
+        "--logistic-c",
+        str(logistic_c),
+    ]
+
+    if from_date is not None:
+        forecast_args.extend(["--from-date", from_date])
+
+    if through_date is not None:
+        forecast_args.extend(["--through-date", through_date])
+
+    if rating_cutoff_date is not None:
+        forecast_args.extend(["--rating-cutoff-date", rating_cutoff_date])
+
+    if sample_weight_half_life_days is not None:
+        forecast_args.extend(
+            [
+                "--sample-weight-half-life-days",
+                str(sample_weight_half_life_days),
+            ]
+        )
+
+    run_step("3. Forecast upcoming World Cup fixtures", forecast_args)
+
+    console.print()
+    console.print("[green]Upcoming World Cup forecast workflow complete.[/green]")
+    console.print(f"Forecast output: {output_path}")
 
 
 @app.command("ingest-world-cup-fixtures")
