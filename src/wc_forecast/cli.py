@@ -43,6 +43,7 @@ from wc_forecast.reporting.match_report import (
     save_match_prediction_report,
 )
 from wc_forecast.reporting.prediction_report import save_backtest_report
+from wc_forecast.reports.artifact_index import save_artifact_index
 from wc_forecast.reports.upcoming_forecast_report import save_upcoming_forecast_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
@@ -97,6 +98,7 @@ DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH = Path(
 DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH = Path(
     "outputs/world_cup_2026_upcoming_forecast_report.md"
 )
+DEFAULT_ARTIFACT_INDEX_PATH = Path("outputs/forecast_artifact_index.csv")
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -738,6 +740,28 @@ def report_match(
 
 
 
+
+@app.command("list-forecast-artifacts")
+def list_forecast_artifacts_command(
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for forecast artifact index CSV.",
+        ),
+    ] = DEFAULT_ARTIFACT_INDEX_PATH,
+) -> None:
+    """List generated forecast and validation artifacts."""
+
+    artifact_index = save_artifact_index(output_path=output_path)
+
+    console.print("Forecast artifact index:")
+    console.print(artifact_index.to_string(index=False))
+    console.print()
+    console.print(f"Artifact index written to: {output_path}")
+
+
 @app.command("summarize-upcoming-forecasts")
 def summarize_upcoming_forecasts_command(
     forecasts_path: Annotated[
@@ -955,10 +979,20 @@ def run_upcoming_world_cup_forecast_command(
         ],
     )
 
+    run_step(
+        "5. Index generated forecast artifacts",
+        [
+            "list-forecast-artifacts",
+            "--output",
+            str(DEFAULT_ARTIFACT_INDEX_PATH),
+        ],
+    )
+
     console.print()
     console.print("[green]Upcoming World Cup forecast workflow complete.[/green]")
     console.print(f"Forecast output: {output_path}")
     console.print(f"Report output: {DEFAULT_WORLD_CUP_2026_UPCOMING_REPORT_PATH}")
+    console.print(f"Artifact index: {DEFAULT_ARTIFACT_INDEX_PATH}")
 
 
 @app.command("ingest-world-cup-fixtures")

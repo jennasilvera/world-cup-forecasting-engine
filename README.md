@@ -570,6 +570,17 @@ This project demonstrates more than a basic machine learning model. It implement
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
 
+## Forecast Artifact Index
+
+To list the generated forecast and validation outputs:
+
+    python -m wc_forecast list-forecast-artifacts \
+      --output outputs/forecast_artifact_index.csv
+
+This creates an index containing each artifact path, whether it exists, file size, and last modified timestamp.
+
+The one-command workflow also generates this artifact index automatically.
+
 ## Upcoming Forecast Summary Report
 
 After generating upcoming fixture forecasts, create a Markdown summary report:
