@@ -770,7 +770,7 @@ def list_forecast_artifacts_command(
             )
 
         table.add_row(
-            Path(str(row["path"])).name,
+            str(row["artifact"]),
             "yes" if row["exists"] else "no",
             "" if pd.isna(row["size_bytes"]) else f'{int(row["size_bytes"]):,}',
             modified_at,

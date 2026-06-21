@@ -11,6 +11,15 @@ DEFAULT_ARTIFACT_PATHS = [
     Path("outputs/feature_ablation_results.csv"),
 ]
 
+DEFAULT_ARTIFACT_LABELS = {
+    Path("outputs/world_cup_2026_upcoming_forecasts.csv"): "Upcoming Forecast CSV",
+    Path("outputs/world_cup_2026_upcoming_forecast_report.md"): (
+        "Upcoming Forecast Report"
+    ),
+    Path("outputs/rolling_backtest_metrics.csv"): "Rolling Backtest Metrics",
+    Path("outputs/feature_ablation_results.csv"): "Feature Ablation Results",
+}
+
 
 def build_artifact_index(paths: list[Path] | None = None) -> pd.DataFrame:
     """Build an index of generated forecast/model artifacts."""
@@ -24,6 +33,7 @@ def build_artifact_index(paths: list[Path] | None = None) -> pd.DataFrame:
 
         rows.append(
             {
+                "artifact": DEFAULT_ARTIFACT_LABELS.get(path, path.stem),
                 "path": str(path),
                 "exists": exists,
                 "size_bytes": stat.st_size if stat else None,

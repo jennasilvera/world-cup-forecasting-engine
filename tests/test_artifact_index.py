@@ -15,6 +15,7 @@ def test_build_artifact_index_marks_existing_and_missing_files(tmp_path: Path) -
 
     result = build_artifact_index(paths=[existing, missing])
 
+    assert list(result["artifact"]) == ["existing", "missing"]
     assert list(result["exists"]) == [True, False]
     assert result.loc[0, "size_bytes"] == 5
     assert pd.isna(result.loc[1, "size_bytes"])
