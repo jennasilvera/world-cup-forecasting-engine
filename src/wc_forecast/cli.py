@@ -843,6 +843,19 @@ def forecast_upcoming_fixtures_command(
 ) -> None:
     """Automatically forecast all upcoming known-team World Cup fixtures."""
 
+    if not fixtures_path.exists():
+        console.print(f"[red]Fixture file not found:[/red] {fixtures_path}")
+        console.print()
+        console.print("Create it by running:")
+        console.print("  python -m wc_forecast ingest-world-cup-fixtures \\")
+        console.print("    data/raw/world_cup_2026_fixtures.csv \\")
+        console.print("    --output data/processed/world_cup_2026_fixtures.csv")
+        console.print()
+        console.print("Or test with the included sample:")
+        console.print("  python -m wc_forecast forecast-upcoming-fixtures \\")
+        console.print("    data/sample/world_cup_2026_fixtures_sample.csv")
+        raise typer.Exit(code=1)
+
     forecasts = save_upcoming_fixture_forecasts_from_results(
         fixtures_path=fixtures_path,
         features_path=features_path,
