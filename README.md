@@ -617,6 +617,10 @@ The report highlights:
 
 The one-command workflow also generates this report automatically.
 
+## Daily Forecast Runbook
+
+For the full analyst/operator workflow, see [`docs/daily_forecast_runbook.md`](docs/daily_forecast_runbook.md).
+
 ## One-Command Upcoming World Cup Forecast
 
 To run the full upcoming World Cup forecast workflow:
