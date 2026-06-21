@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 import pandas as pd
 from sklearn.pipeline import Pipeline
@@ -566,3 +568,110 @@ def _predicted_winner(row: pd.Series) -> str:
         return str(row["away_team"])
 
     return "Draw"
+
+COMPLETED_FIXTURE_STATUSES = {
+    "complete",
+    "completed",
+    "final",
+    "full time",
+    "ft",
+    "played",
+    "cancelled",
+    "canceled",
+    "postponed",
+}
+
+
+def filter_upcoming_fixtures(
+    fixtures: pd.DataFrame,
+    from_date: str | None = None,
+    through_date: str | None = None,
+    include_tbd: bool = False,
+) -> pd.DataFrame:
+    """Filter a fixture table down to upcoming, forecastable matches."""
+
+    required_columns = {"date", "home_team", "away_team"}
+    missing_columns = required_columns - set(fixtures.columns)
+
+    if missing_columns:
+        raise ValueError(
+            f"Fixture table missing required columns: {sorted(missing_columns)}"
+        )
+
+    filtered = fixtures.copy()
+    filtered["date"] = pd.to_datetime(filtered["date"], errors="raise")
+
+    start_date = pd.Timestamp(from_date or date.today().isoformat())
+    filtered = filtered[filtered["date"] >= start_date]
+
+    if through_date is not None:
+        end_date = pd.Timestamp(through_date)
+        filtered = filtered[filtered["date"] <= end_date]
+
+    if "status" in filtered.columns:
+        statuses = filtered["status"].fillna("").astype(str).str.lower().str.strip()
+        filtered = filtered[~statuses.isin(COMPLETED_FIXTURE_STATUSES)]
+
+    if not include_tbd:
+        home_team = filtered["home_team"].fillna("").astype(str).str.lower()
+        away_team = filtered["away_team"].fillna("").astype(str).str.lower()
+
+        has_tbd_home = home_team.str.contains("tbd|to be determined", regex=True)
+        has_tbd_away = away_team.str.contains("tbd|to be determined", regex=True)
+
+        filtered = filtered[~(has_tbd_home | has_tbd_away)]
+
+    return filtered.sort_values(["date", "home_team", "away_team"]).reset_index(drop=True)
+
+
+def save_upcoming_fixture_forecasts_from_results(
+    fixtures_path: str | Path,
+    features_path: str | Path,
+    results_path: str | Path,
+    output_path: str | Path,
+    train_cutoff_date: str,
+    from_date: str | None = None,
+    through_date: str | None = None,
+    rating_cutoff_date: str | None = None,
+    sample_weight_half_life_days: float | None = None,
+    model_type: str = "logistic",
+    logistic_c: float = DEFAULT_LOGISTIC_C,
+    include_tbd: bool = False,
+) -> pd.DataFrame:
+    """Forecast all upcoming, known-team fixtures from a full fixture file."""
+
+    fixtures = pd.read_csv(fixtures_path)
+    upcoming_fixtures = filter_upcoming_fixtures(
+        fixtures=fixtures,
+        from_date=from_date,
+        through_date=through_date,
+        include_tbd=include_tbd,
+    )
+
+    if upcoming_fixtures.empty:
+        raise ValueError("No upcoming forecastable fixtures found.")
+
+    with NamedTemporaryFile(
+        mode="w",
+        suffix=".csv",
+        prefix="upcoming_fixtures_",
+        delete=False,
+    ) as temporary_file:
+        temporary_path = Path(temporary_file.name)
+        upcoming_fixtures.to_csv(temporary_file.name, index=False)
+
+    try:
+        return save_fixture_forecasts_from_results(
+            fixtures_path=temporary_path,
+            features_path=features_path,
+            results_path=results_path,
+            output_path=output_path,
+            train_cutoff_date=train_cutoff_date,
+            rating_cutoff_date=rating_cutoff_date,
+            sample_weight_half_life_days=sample_weight_half_life_days,
+            model_type=model_type,
+            logistic_c=logistic_c,
+        )
+    finally:
+        temporary_path.unlink(missing_ok=True)
+

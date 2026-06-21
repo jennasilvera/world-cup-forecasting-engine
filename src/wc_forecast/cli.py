@@ -11,7 +11,10 @@ from rich.table import Table
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.data_sources.international_results import save_normalized_international_results
 from wc_forecast.features.build_features import save_match_features
-from wc_forecast.forecasting.fixture_forecast import save_fixture_forecasts_from_results
+from wc_forecast.forecasting.fixture_forecast import (
+    save_fixture_forecasts_from_results,
+    save_upcoming_fixture_forecasts_from_results,
+)
 from wc_forecast.ledger.prediction_ledger import (
     append_candidate_edges_to_prediction_ledger,
     save_market_prediction_to_ledger,
@@ -80,6 +83,12 @@ DEFAULT_STAKE_SIZING_PATH = Path("outputs/stake_sizing_edges.csv")
 DEFAULT_SETTLEMENT_RESULTS_PATH = Path("data/sample/settlement_results_sample.csv")
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
 DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("outputs/prediction_ledger_report.md")
+
+DEFAULT_WORLD_CUP_2026_FIXTURES_PATH = Path("data/processed/world_cup_2026_fixtures.csv")
+DEFAULT_UPCOMING_FORECAST_RESULTS_PATH = Path("data/processed/results.csv")
+DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH = Path(
+    "outputs/world_cup_2026_upcoming_forecasts.csv"
+)
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -715,6 +724,113 @@ def report_match(
 
     console.print(f"[green]Match prediction written to:[/green] {prediction_destination}")
     console.print(f"[green]Match report written to:[/green] {report_destination}")
+
+
+
+@app.command("forecast-upcoming-fixtures")
+def forecast_upcoming_fixtures_command(
+    fixtures_path: Annotated[
+        Path,
+        typer.Argument(help="Path to full World Cup 2026 fixtures CSV."),
+    ] = DEFAULT_WORLD_CUP_2026_FIXTURES_PATH,
+    features_path: Annotated[
+        Path,
+        typer.Option(
+            "--features",
+            help="Path to model-ready feature table CSV.",
+        ),
+    ] = DEFAULT_FEATURES_PATH,
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_UPCOMING_FORECAST_RESULTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for upcoming fixture forecasts CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH,
+    train_cutoff_date: Annotated[
+        str,
+        typer.Option(
+            "--train-cutoff-date",
+            help="Train only on matches before this date.",
+        ),
+    ] = "2026-01-01",
+    from_date: Annotated[
+        str | None,
+        typer.Option(
+            "--from-date",
+            help="Forecast fixtures on or after this date. Defaults to today.",
+        ),
+    ] = None,
+    through_date: Annotated[
+        str | None,
+        typer.Option(
+            "--through-date",
+            help="Optional final fixture date to include.",
+        ),
+    ] = None,
+    rating_cutoff_date: Annotated[
+        str | None,
+        typer.Option(
+            "--rating-cutoff-date",
+            help="Use ratings/form built only from results before this date.",
+        ),
+    ] = None,
+    sample_weight_half_life_days: Annotated[
+        float | None,
+        typer.Option(
+            "--sample-weight-half-life-days",
+            help="Optional recency half-life in days for training weights.",
+        ),
+    ] = DEFAULT_RECENCY_HALF_LIFE_DAYS,
+    model_type: Annotated[
+        str,
+        typer.Option(
+            "--model-type",
+            help="Model type: logistic, gradient_boosting, or random_forest.",
+        ),
+    ] = "logistic",
+    logistic_c: Annotated[
+        float,
+        typer.Option(
+            "--logistic-c",
+            help="Inverse regularization strength for logistic model.",
+        ),
+    ] = DEFAULT_LOGISTIC_C,
+    include_tbd: Annotated[
+        bool,
+        typer.Option(
+            "--include-tbd",
+            help="Include TBD knockout placeholders if present.",
+        ),
+    ] = False,
+) -> None:
+    """Automatically forecast all upcoming known-team World Cup fixtures."""
+
+    forecasts = save_upcoming_fixture_forecasts_from_results(
+        fixtures_path=fixtures_path,
+        features_path=features_path,
+        results_path=results_path,
+        output_path=output_path,
+        train_cutoff_date=train_cutoff_date,
+        from_date=from_date,
+        through_date=through_date,
+        rating_cutoff_date=rating_cutoff_date,
+        sample_weight_half_life_days=sample_weight_half_life_days,
+        model_type=model_type,
+        logistic_c=logistic_c,
+        include_tbd=include_tbd,
+    )
+
+    console.print(f"Forecasted {len(forecasts)} upcoming fixtures.")
+    console.print(f"Upcoming fixture forecasts written to: {output_path}")
 
 
 @app.command("forecast-fixtures")

@@ -570,6 +570,26 @@ This project demonstrates more than a basic machine learning model. It implement
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
 
+## Forecast All Upcoming World Cup Fixtures
+
+To forecast every upcoming known-team World Cup 2026 fixture from a full fixture file:
+
+    python -m wc_forecast forecast-upcoming-fixtures \
+      data/processed/world_cup_2026_fixtures.csv \
+      --train-cutoff-date 2026-01-01 \
+      --rating-cutoff-date 2026-06-19 \
+      --output outputs/world_cup_2026_upcoming_forecasts.csv
+
+The fixture file should contain at least:
+
+- `date`
+- `home_team`
+- `away_team`
+- `tournament`
+- `neutral`
+
+If a `status` column is present, completed/final/postponed fixtures are excluded. Knockout placeholders such as `TBD` are excluded by default until both teams are known.
+
 ## Reproducible Demo
 
 Run the full modeling workflow with an existing processed results file:
