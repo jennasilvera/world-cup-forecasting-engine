@@ -570,6 +570,40 @@ This project demonstrates more than a basic machine learning model. It implement
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
 
+## World Cup Fixture Schedule Ingestion
+
+To forecast all upcoming World Cup 2026 matches, first normalize a full raw fixture schedule:
+
+    python -m wc_forecast ingest-world-cup-fixtures \
+      data/raw/world_cup_2026_fixtures.csv \
+      --output data/processed/world_cup_2026_fixtures.csv
+
+The raw fixture file must contain:
+
+- `date`
+- `home_team`
+- `away_team`
+
+Optional columns:
+
+- `tournament`
+- `neutral`
+- `status`
+
+If optional columns are missing, the ingestion command defaults them to:
+
+- `tournament = FIFA World Cup`
+- `neutral = true`
+- `status = Scheduled`
+
+After ingestion, run:
+
+    python -m wc_forecast forecast-upcoming-fixtures \
+      --from-date 2026-06-20 \
+      --train-cutoff-date 2026-01-01 \
+      --rating-cutoff-date 2026-06-19 \
+      --output outputs/world_cup_2026_upcoming_forecasts.csv
+
 ## Forecast All Upcoming World Cup Fixtures
 
 To forecast every upcoming known-team World Cup 2026 fixture from a full fixture file:

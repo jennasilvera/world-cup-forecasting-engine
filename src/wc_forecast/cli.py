@@ -8,6 +8,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from wc_forecast.data.ingest_fixtures import save_world_cup_fixtures
 from wc_forecast.data.ingest_results import load_historical_results, save_processed_results
 from wc_forecast.data_sources.international_results import save_normalized_international_results
 from wc_forecast.features.build_features import save_match_features
@@ -84,6 +85,7 @@ DEFAULT_SETTLEMENT_RESULTS_PATH = Path("data/sample/settlement_results_sample.cs
 DEFAULT_PREDICTION_LEDGER_PATH = Path("outputs/prediction_ledger.csv")
 DEFAULT_PREDICTION_LEDGER_REPORT_PATH = Path("outputs/prediction_ledger_report.md")
 
+DEFAULT_WORLD_CUP_2026_RAW_FIXTURES_PATH = Path("data/raw/world_cup_2026_fixtures.csv")
 DEFAULT_WORLD_CUP_2026_FIXTURES_PATH = Path("data/processed/world_cup_2026_fixtures.csv")
 DEFAULT_UPCOMING_FORECAST_RESULTS_PATH = Path("data/processed/results.csv")
 DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH = Path(
@@ -725,6 +727,33 @@ def report_match(
     console.print(f"[green]Match prediction written to:[/green] {prediction_destination}")
     console.print(f"[green]Match report written to:[/green] {report_destination}")
 
+
+
+
+@app.command("ingest-world-cup-fixtures")
+def ingest_world_cup_fixtures_command(
+    source_path: Annotated[
+        Path,
+        typer.Argument(help="Path to raw World Cup 2026 fixtures CSV."),
+    ] = DEFAULT_WORLD_CUP_2026_RAW_FIXTURES_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for normalized processed World Cup fixtures CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_FIXTURES_PATH,
+) -> None:
+    """Normalize a raw World Cup fixture schedule for forecasting."""
+
+    fixtures = save_world_cup_fixtures(
+        source_path=source_path,
+        output_path=output_path,
+    )
+
+    console.print(f"Processed {len(fixtures)} World Cup fixtures.")
+    console.print(f"Fixture schedule written to: {output_path}")
 
 
 @app.command("forecast-upcoming-fixtures")
