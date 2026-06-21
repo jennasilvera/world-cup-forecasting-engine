@@ -570,6 +570,27 @@ This project demonstrates more than a basic machine learning model. It implement
 The main value of the project is the architecture: it shows how a prediction system can be structured like a research-grade forecasting agent rather than a one-off notebook.
 
 
+## Reproducible Demo
+
+Run the full modeling workflow with:
+
+    ./scripts/run_demo.sh
+
+The demo performs:
+
+1. Project health check
+2. Real international results ingestion
+3. Feature engineering
+4. Tuned rolling backtest
+5. Feature ablation validation
+6. Sample World Cup fixture forecasting
+
+Key outputs:
+
+- `outputs/rolling_backtest_metrics.csv`
+- `outputs/feature_ablation_results.csv`
+- `outputs/world_cup_2026_forecasts.csv`
+
 ## Model Selection
 
 The default forecasting model is selected using rolling-origin validation across historical cutoff dates, feature ablation, and logistic hyperparameter tuning.
