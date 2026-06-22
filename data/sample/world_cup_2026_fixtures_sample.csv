@@ -1,9 +1,5 @@
-date,home_team,away_team,tournament,neutral
-2026-06-20,Netherlands,Sweden,FIFA World Cup,True
-2026-06-20,Germany,Ivory Coast,FIFA World Cup,True
-2026-06-20,Ecuador,Curacao,FIFA World Cup,True
-2026-06-21,Tunisia,Japan,FIFA World Cup,True
-2026-06-21,Spain,Saudi Arabia,FIFA World Cup,True
-2026-06-21,Belgium,Iran,FIFA World Cup,True
-2026-06-21,Uruguay,Cape Verde,FIFA World Cup,True
-2026-06-21,New Zealand,Egypt,FIFA World Cup,True
+date,home_team,away_team,tournament,neutral,status
+2026-06-20,Argentina,Brazil,FIFA World Cup,True,Scheduled
+2026-06-21,Costa Rica,Ecuador,FIFA World Cup,True,Scheduled
+2026-06-22,England,France,FIFA World Cup,True,Scheduled
+2026-06-23,Iran,Mexico,FIFA World Cup,True,Scheduled
