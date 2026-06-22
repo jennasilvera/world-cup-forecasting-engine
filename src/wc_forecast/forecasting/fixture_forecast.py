@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from datetime import date
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -40,6 +39,7 @@ TEAM_ALIASES = {
 
 FORECAST_OUTPUT_COLUMNS = [
     "date",
+    "kickoff_at",
     "home_team",
     "away_team",
     "tournament",
@@ -172,7 +172,8 @@ def build_fixture_forecast_features(
 
     validate_fixture_slate(fixtures)
 
-    fixture_features = fixtures[REQUIRED_FIXTURE_COLUMNS].copy()
+    optional_columns = [column for column in ["kickoff_at"] if column in fixtures.columns]
+    fixture_features = fixtures[REQUIRED_FIXTURE_COLUMNS + optional_columns].copy()
     fixture_features["date"] = pd.to_datetime(fixture_features["date"], errors="raise")
     fixture_features["neutral"] = fixture_features["neutral"].map(_coerce_bool)
 
@@ -222,6 +223,7 @@ def build_fixture_forecast_features(
 
         row = {
             "date": fixture.date,
+            "kickoff_at": getattr(fixture, "kickoff_at", pd.NA),
             "home_team": fixture.home_team,
             "away_team": fixture.away_team,
             "tournament": fixture.tournament,
@@ -305,6 +307,10 @@ def forecast_fixtures(
     forecasts["model_confidence"] = forecasts[probability_columns].max(axis=1)
 
     forecasts["date"] = pd.to_datetime(forecasts["date"]).dt.date.astype(str)
+
+    for column in FORECAST_OUTPUT_COLUMNS:
+        if column not in forecasts.columns:
+            forecasts[column] = pd.NA
 
     return forecasts[FORECAST_OUTPUT_COLUMNS]
 
@@ -587,6 +593,7 @@ def filter_upcoming_fixtures(
     from_date: str | None = None,
     through_date: str | None = None,
     include_tbd: bool = False,
+    as_of: str | None = None,
 ) -> pd.DataFrame:
     """Filter a fixture table down to upcoming, forecastable matches."""
 
@@ -601,12 +608,23 @@ def filter_upcoming_fixtures(
     filtered = fixtures.copy()
     filtered["date"] = pd.to_datetime(filtered["date"], errors="raise")
 
-    start_date = pd.Timestamp(from_date or date.today().isoformat())
-    filtered = filtered[filtered["date"] >= start_date]
+    reference_time = _reference_time_utc(as_of)
+
+    if from_date is None:
+        start_date = reference_time.date()
+    else:
+        start_date = pd.Timestamp(from_date).date()
+
+    filtered = filtered[filtered["date"].dt.date >= start_date]
+
+    if from_date is None:
+        kickoff_at = _kickoff_series_utc(filtered)
+        has_kickoff_at = kickoff_at.notna()
+        filtered = filtered[(~has_kickoff_at) | (kickoff_at > reference_time)]
 
     if through_date is not None:
-        end_date = pd.Timestamp(through_date)
-        filtered = filtered[filtered["date"] <= end_date]
+        end_date = pd.Timestamp(through_date).date()
+        filtered = filtered[filtered["date"].dt.date <= end_date]
 
     if "status" in filtered.columns:
         statuses = filtered["status"].fillna("").astype(str).str.lower().str.strip()
@@ -624,6 +642,40 @@ def filter_upcoming_fixtures(
     return filtered.sort_values(["date", "home_team", "away_team"]).reset_index(drop=True)
 
 
+def _reference_time_utc(as_of: str | None = None) -> pd.Timestamp:
+    """Return the current/reference time as a UTC timestamp."""
+
+    if as_of is None:
+        return pd.Timestamp.now(tz="UTC")
+
+    timestamp = pd.Timestamp(as_of)
+
+    if timestamp.tzinfo is None:
+        return timestamp.tz_localize("UTC")
+
+    return timestamp.tz_convert("UTC")
+
+
+def _kickoff_series_utc(fixtures: pd.DataFrame) -> pd.Series:
+    """Return fixture kickoff timestamps as UTC when available."""
+
+    raw_kickoff: pd.Series | None = None
+
+    if "kickoff_at" in fixtures.columns:
+        raw_kickoff = fixtures["kickoff_at"].replace("", pd.NA)
+    elif "datetime" in fixtures.columns:
+        raw_kickoff = fixtures["datetime"].replace("", pd.NA)
+    elif "time" in fixtures.columns:
+        raw_time = fixtures["time"].replace("", pd.NA)
+        raw_kickoff = fixtures["date"].astype(str) + " " + raw_time.astype(str)
+        raw_kickoff = raw_kickoff.where(raw_time.notna())
+
+    if raw_kickoff is None:
+        return pd.Series(pd.NaT, index=fixtures.index, dtype="datetime64[ns, UTC]")
+
+    return pd.to_datetime(raw_kickoff, errors="coerce", utc=True)
+
+
 def save_upcoming_fixture_forecasts_from_results(
     fixtures_path: str | Path,
     features_path: str | Path,
@@ -632,6 +684,7 @@ def save_upcoming_fixture_forecasts_from_results(
     train_cutoff_date: str,
     from_date: str | None = None,
     through_date: str | None = None,
+    as_of: str | None = None,
     rating_cutoff_date: str | None = None,
     sample_weight_half_life_days: float | None = None,
     model_type: str = "logistic",
@@ -646,6 +699,7 @@ def save_upcoming_fixture_forecasts_from_results(
         from_date=from_date,
         through_date=through_date,
         include_tbd=include_tbd,
+        as_of=as_of,
     )
 
     if upcoming_fixtures.empty:

@@ -116,7 +116,7 @@ forecast-sample:
 		--output data/processed/world_cup_2026_fixtures.csv
 	python -m wc_forecast forecast-upcoming-fixtures \
 		data/processed/world_cup_2026_fixtures.csv \
-		--from-date 2026-06-20 \
+		--as-of 2026-06-20T00:00:00Z \
 		--train-cutoff-date 2026-01-01 \
 		--rating-cutoff-date 2026-06-19 \
 		--output outputs/world_cup_2026_upcoming_forecasts.csv

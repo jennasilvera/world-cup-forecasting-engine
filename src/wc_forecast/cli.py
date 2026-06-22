@@ -901,7 +901,14 @@ def run_upcoming_world_cup_forecast_command(
         str | None,
         typer.Option(
             "--from-date",
-            help="Forecast fixtures on or after this date. Defaults to today.",
+            help="Optional date-level start override. Defaults to current date/time.",
+        ),
+    ] = None,
+    as_of: Annotated[
+        str | None,
+        typer.Option(
+            "--as-of",
+            help="Reference timestamp for automatic upcoming filtering.",
         ),
     ] = None,
     through_date: Annotated[
@@ -1015,6 +1022,9 @@ def run_upcoming_world_cup_forecast_command(
 
     if from_date is not None:
         forecast_args.extend(["--from-date", from_date])
+
+    if as_of is not None:
+        forecast_args.extend(["--as-of", as_of])
 
     if through_date is not None:
         forecast_args.extend(["--through-date", through_date])
@@ -1134,7 +1144,14 @@ def forecast_upcoming_fixtures_command(
         str | None,
         typer.Option(
             "--from-date",
-            help="Forecast fixtures on or after this date. Defaults to today.",
+            help="Optional date-level start override. Defaults to current date/time.",
+        ),
+    ] = None,
+    as_of: Annotated[
+        str | None,
+        typer.Option(
+            "--as-of",
+            help="Reference timestamp for automatic upcoming filtering.",
         ),
     ] = None,
     through_date: Annotated[
@@ -1203,6 +1220,7 @@ def forecast_upcoming_fixtures_command(
         train_cutoff_date=train_cutoff_date,
         from_date=from_date,
         through_date=through_date,
+        as_of=as_of,
         rating_cutoff_date=rating_cutoff_date,
         sample_weight_half_life_days=sample_weight_half_life_days,
         model_type=model_type,

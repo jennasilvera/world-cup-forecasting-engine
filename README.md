@@ -4,7 +4,7 @@
 
 A quant-style probabilistic football forecasting system for FIFA World Cup matches.
 
-This project estimates pre-match win/draw/loss probabilities using historical international match results, custom Elo ratings, model-ready feature engineering, chronological backtesting, and recruiter-facing model reports.
+This project estimates pre-match win/draw/loss probabilities using historical international match results, custom Elo ratings, model-ready feature engineering, chronological backtesting, and reviewer-facing model reports.
 
 The project is intentionally framed as a probabilistic forecasting engine, not a tool that claims to perfectly predict football matches.
 

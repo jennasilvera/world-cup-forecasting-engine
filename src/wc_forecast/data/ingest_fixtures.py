@@ -19,6 +19,7 @@ OPTIONAL_FIXTURE_DEFAULTS = {
 
 PROCESSED_FIXTURE_COLUMNS = [
     "date",
+    "kickoff_at",
     "home_team",
     "away_team",
     "tournament",
@@ -43,7 +44,14 @@ def normalize_world_cup_fixtures(fixtures: pd.DataFrame) -> pd.DataFrame:
         if column not in normalized.columns:
             normalized[column] = default_value
 
-    normalized["date"] = pd.to_datetime(normalized["date"], errors="raise").dt.date
+    raw_date = normalized["date"].copy()
+    parsed_date = pd.to_datetime(raw_date, errors="raise")
+
+    normalized["kickoff_at"] = _build_kickoff_at(
+        fixtures=normalized,
+        raw_date=raw_date,
+    )
+    normalized["date"] = parsed_date.dt.date
 
     normalized["home_team"] = normalized["home_team"].astype(str).str.strip()
     normalized["away_team"] = normalized["away_team"].astype(str).str.strip()
@@ -86,6 +94,30 @@ def save_world_cup_fixtures(
     normalized.to_csv(destination, index=False)
 
     return normalized
+
+
+def _build_kickoff_at(fixtures: pd.DataFrame, raw_date: pd.Series) -> pd.Series:
+    """Build an optional normalized kickoff timestamp column."""
+
+    if "kickoff_at" in fixtures.columns:
+        raw_kickoff = fixtures["kickoff_at"]
+    elif "datetime" in fixtures.columns:
+        raw_kickoff = fixtures["datetime"]
+    elif "time" in fixtures.columns:
+        raw_time = fixtures["time"].replace("", pd.NA)
+        raw_kickoff = raw_date.astype(str) + " " + raw_time.astype(str)
+        raw_kickoff = raw_kickoff.where(raw_time.notna())
+    else:
+        raw_date_text = raw_date.astype(str)
+        date_column_has_time = raw_date_text.str.contains(
+            r"[T ]\d{1,2}:\d{2}",
+            regex=True,
+        )
+        raw_kickoff = raw_date_text.where(date_column_has_time)
+
+    parsed = pd.to_datetime(raw_kickoff, errors="coerce", utc=True)
+
+    return parsed.dt.strftime("%Y-%m-%dT%H:%M:%SZ").where(parsed.notna(), "")
 
 
 def _parse_bool(value: object) -> bool:
