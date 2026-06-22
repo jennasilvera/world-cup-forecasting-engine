@@ -627,7 +627,7 @@ Runs Ruff, pytest, and the package health check.
 
     make forecast-sample
 
-Runs upcoming fixture forecasts using the committed sample World Cup fixture file.
+Normalizes the committed sample World Cup fixture file, then runs upcoming fixture forecasts.
 
     make forecast-report
 

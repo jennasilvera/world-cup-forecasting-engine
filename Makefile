@@ -111,8 +111,11 @@ validate:
 	python -m wc_forecast health
 
 forecast-sample:
-	python -m wc_forecast forecast-upcoming-fixtures \
+	python -m wc_forecast ingest-world-cup-fixtures \
 		data/sample/world_cup_2026_fixtures_sample.csv \
+		--output data/processed/world_cup_2026_fixtures.csv
+	python -m wc_forecast forecast-upcoming-fixtures \
+		data/processed/world_cup_2026_fixtures.csv \
 		--from-date 2026-06-20 \
 		--train-cutoff-date 2026-01-01 \
 		--rating-cutoff-date 2026-06-19 \
