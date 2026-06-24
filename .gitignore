@@ -30,3 +30,9 @@ reports/*.pdf
 !data/sample/*.csv
 data/external/*
 !data/external/.gitkeep
+
+# Local forecasting databases
+*.sqlite
+*.sqlite3
+data/*.sqlite
+data/*.sqlite3

@@ -617,6 +617,14 @@ The report highlights:
 
 The one-command workflow also generates this report automatically.
 
+## Sample Fixture Data Notice
+
+The fixture file in `data/sample/world_cup_2026_fixtures_sample.csv` is a synthetic, rating-safe demo fixture slate used for tests, CI, and local smoke runs. It is not the official FIFA World Cup 2026 schedule.
+
+For real forecasting runs, provide an actual fixture schedule through:
+
+    python -m wc_forecast ingest-world-cup-fixtures data/raw/world_cup_2026_fixtures.csv
+
 ## Makefile Shortcuts
 
 Useful project commands:

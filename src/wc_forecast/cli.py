@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -47,6 +48,22 @@ from wc_forecast.reports.artifact_index import save_artifact_index
 from wc_forecast.reports.forecast_audit import save_forecast_audit
 from wc_forecast.reports.upcoming_forecast_report import save_upcoming_forecast_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
+from wc_forecast.storage.database import (
+    DEFAULT_DATABASE_PATH,
+    initialize_database,
+    table_names,
+)
+from wc_forecast.storage.external_signals import (
+    write_injury_suspension_events,
+    write_market_snapshots,
+    write_player_availability,
+)
+from wc_forecast.storage.feature_store import write_feature_store_frame
+from wc_forecast.storage.model_registry import list_models, register_model
+from wc_forecast.storage.prediction_store import (
+    read_prediction_ledger,
+    write_forecasts_to_prediction_ledger,
+)
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
 from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
 from wc_forecast.validation.feature_ablation import (
@@ -103,6 +120,7 @@ DEFAULT_ARTIFACT_INDEX_PATH = Path("outputs/forecast_artifact_index.csv")
 DEFAULT_WORLD_CUP_2026_FORECAST_AUDIT_PATH = Path(
     "outputs/world_cup_2026_upcoming_forecast_audit.csv"
 )
+
 
 app = typer.Typer(
     help="World Cup Match Forecasting Engine CLI",
@@ -1196,6 +1214,20 @@ def forecast_upcoming_fixtures_command(
             help="Include TBD knockout placeholders if present.",
         ),
     ] = False,
+    write_ledger: Annotated[
+        bool,
+        typer.Option(
+            "--write-ledger",
+            help="Write generated forecasts to the database-backed prediction ledger.",
+        ),
+    ] = False,
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
 ) -> None:
     """Automatically forecast all upcoming known-team World Cup fixtures."""
 
@@ -1227,6 +1259,14 @@ def forecast_upcoming_fixtures_command(
         logistic_c=logistic_c,
         include_tbd=include_tbd,
     )
+
+    if write_ledger:
+        initialize_database(database_path)
+        inserted = write_forecasts_to_prediction_ledger(
+            forecasts,
+            database_path=database_path,
+        )
+        console.print(f"Wrote {inserted} forecasts to prediction ledger: {database_path}")
 
     console.print(f"Forecasted {len(forecasts)} upcoming fixtures.")
     console.print(f"Upcoming fixture forecasts written to: {output_path}")
@@ -2111,3 +2151,314 @@ def ingest_real_results(
 
 if __name__ == "__main__":
     app()
+
+
+@app.command("init-database")
+def init_database_command(
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """Initialize the forecasting platform SQLite database."""
+
+    initialize_database(database_path)
+    console.print(f"Initialized database: {database_path}")
+
+
+@app.command("list-database-tables")
+def list_database_tables_command(
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """List forecasting platform database tables."""
+
+    initialize_database(database_path)
+
+    table = Table(title="Forecasting Database Tables")
+    table.add_column("Table")
+
+    for table_name in table_names(database_path):
+        table.add_row(table_name)
+
+    console.print(table)
+
+
+@app.command("write-forecast-ledger")
+def write_forecast_ledger_command(
+    forecasts_path: Annotated[
+        Path,
+        typer.Argument(help="Path to forecast CSV."),
+    ] = DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH,
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
+    model_id: Annotated[
+        str | None,
+        typer.Option(
+            "--model-id",
+            help="Optional registered model id.",
+        ),
+    ] = None,
+) -> None:
+    """Write an existing forecast CSV to the database-backed prediction ledger."""
+
+    initialize_database(database_path)
+    forecasts = pd.read_csv(forecasts_path)
+
+    inserted = write_forecasts_to_prediction_ledger(
+        forecasts,
+        model_id=model_id,
+        database_path=database_path,
+    )
+
+    console.print(f"Wrote {inserted} forecasts to prediction ledger: {database_path}")
+
+
+@app.command("list-prediction-ledger")
+def list_prediction_ledger_command(
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
+    limit: Annotated[
+        int,
+        typer.Option(
+            "--limit",
+            help="Maximum ledger rows to show.",
+        ),
+    ] = 20,
+) -> None:
+    """List recent database-backed prediction ledger rows."""
+
+    initialize_database(database_path)
+    rows = read_prediction_ledger(database_path)[:limit]
+
+    table = Table(title="Prediction Ledger")
+    table.add_column("Date")
+    table.add_column("Match")
+    table.add_column("Prediction")
+    table.add_column("Confidence")
+    table.add_column("Status")
+
+    for row in rows:
+        table.add_row(
+            str(row["match_date"]),
+            f'{row["home_team"]} vs {row["away_team"]}',
+            str(row["predicted_winner"]),
+            f'{float(row["model_confidence"]):.3f}',
+            str(row["status"]),
+        )
+
+    console.print(table)
+
+
+@app.command("register-model")
+def register_model_command(
+    model_type: Annotated[
+        str,
+        typer.Option("--model-type", help="Model type."),
+    ] = "logistic",
+    train_cutoff_date: Annotated[
+        str,
+        typer.Option("--train-cutoff-date", help="Training cutoff date."),
+    ] = "2026-01-01",
+    feature_version: Annotated[
+        str,
+        typer.Option("--feature-version", help="Feature version label."),
+    ] = "v1",
+    metrics_json: Annotated[
+        str,
+        typer.Option("--metrics-json", help="Model metrics as JSON."),
+    ] = "{}",
+    artifact_path: Annotated[
+        str | None,
+        typer.Option("--artifact-path", help="Optional model artifact path."),
+    ] = None,
+    notes: Annotated[
+        str | None,
+        typer.Option("--notes", help="Optional model notes."),
+    ] = None,
+    database_path: Annotated[
+        Path,
+        typer.Option("--database", help="SQLite database path."),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """Register a model artifact in the model registry."""
+
+    initialize_database(database_path)
+    metrics = json.loads(metrics_json)
+
+    model_id = register_model(
+        model_type=model_type,
+        train_cutoff_date=train_cutoff_date,
+        feature_version=feature_version,
+        metrics=metrics,
+        artifact_path=artifact_path,
+        notes=notes,
+        database_path=database_path,
+    )
+
+    console.print(f"Registered model: {model_id}")
+
+
+@app.command("list-models")
+def list_models_command(
+    database_path: Annotated[
+        Path,
+        typer.Option("--database", help="SQLite database path."),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """List registered forecasting models."""
+
+    initialize_database(database_path)
+    models = list_models(database_path)
+
+    table = Table(title="Model Registry")
+    table.add_column("Model ID")
+    table.add_column("Type")
+    table.add_column("Trained At")
+    table.add_column("Feature Version")
+    table.add_column("Metrics")
+
+    for model in models:
+        table.add_row(
+            str(model["model_id"]),
+            str(model["model_type"]),
+            str(model["trained_at"]),
+            str(model["feature_version"]),
+            str(model["metrics_json"]),
+        )
+
+    console.print(table)
+
+
+@app.command("write-feature-store")
+def write_feature_store_command(
+    features_path: Annotated[
+        Path,
+        typer.Argument(help="Path to feature CSV."),
+    ] = DEFAULT_FEATURES_PATH,
+    entity_columns: Annotated[
+        str,
+        typer.Option(
+            "--entity-columns",
+            help="Comma-separated entity id columns.",
+        ),
+    ] = "home_team,away_team",
+    feature_columns: Annotated[
+        str,
+        typer.Option(
+            "--feature-columns",
+            help="Comma-separated feature columns to store.",
+        ),
+    ] = "elo_diff_home_minus_away,is_neutral,is_world_cup,tournament_importance",
+    feature_date_column: Annotated[
+        str,
+        typer.Option("--feature-date-column", help="Feature date column."),
+    ] = "date",
+    feature_set_id: Annotated[
+        str | None,
+        typer.Option("--feature-set-id", help="Optional feature set id."),
+    ] = None,
+    database_path: Annotated[
+        Path,
+        typer.Option("--database", help="SQLite database path."),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """Write selected wide feature columns into the database feature store."""
+
+    initialize_database(database_path)
+    features = pd.read_csv(features_path)
+
+    written_feature_set_id = write_feature_store_frame(
+        features=features,
+        entity_columns=_split_csv_option(entity_columns),
+        feature_columns=_split_csv_option(feature_columns),
+        feature_date_column=feature_date_column,
+        feature_set_id=feature_set_id,
+        database_path=database_path,
+    )
+
+    console.print(f"Wrote feature set: {written_feature_set_id}")
+
+
+@app.command("ingest-market-snapshots")
+def ingest_market_snapshots_command(
+    market_path: Annotated[
+        Path,
+        typer.Argument(help="Path to market snapshot CSV."),
+    ],
+    database_path: Annotated[
+        Path,
+        typer.Option("--database", help="SQLite database path."),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """Ingest market movement snapshots into the database."""
+
+    initialize_database(database_path)
+    market = pd.read_csv(market_path)
+    inserted = write_market_snapshots(market, database_path=database_path)
+
+    console.print(f"Ingested {inserted} market snapshots.")
+
+
+@app.command("ingest-player-availability")
+def ingest_player_availability_command(
+    availability_path: Annotated[
+        Path,
+        typer.Argument(help="Path to player availability CSV."),
+    ],
+    database_path: Annotated[
+        Path,
+        typer.Option("--database", help="SQLite database path."),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """Ingest player-level availability probabilities into the database."""
+
+    initialize_database(database_path)
+    availability = pd.read_csv(availability_path)
+    inserted = write_player_availability(availability, database_path=database_path)
+
+    console.print(f"Ingested {inserted} player availability rows.")
+
+
+@app.command("ingest-injury-suspensions")
+def ingest_injury_suspensions_command(
+    events_path: Annotated[
+        Path,
+        typer.Argument(help="Path to injury/suspension event CSV."),
+    ],
+    database_path: Annotated[
+        Path,
+        typer.Option("--database", help="SQLite database path."),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """Ingest injury and suspension events into the database."""
+
+    initialize_database(database_path)
+    events = pd.read_csv(events_path)
+    inserted = write_injury_suspension_events(events, database_path=database_path)
+
+    console.print(f"Ingested {inserted} injury/suspension events.")
+
+
+def _split_csv_option(value: str) -> list[str]:
+    """Parse a comma-separated CLI option into non-empty values."""
+
+    return [item.strip() for item in value.split(",") if item.strip()]
