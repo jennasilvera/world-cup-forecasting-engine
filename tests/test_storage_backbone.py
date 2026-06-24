@@ -165,3 +165,33 @@ def test_write_external_signal_tables(tmp_path) -> None:
     assert market_count == 1
     assert availability_count == 1
     assert event_count == 1
+
+
+def test_read_latest_prediction_ledger_returns_latest_per_fixture(tmp_path) -> None:
+    database_path = tmp_path / "engine.sqlite"
+    initialize_database(database_path)
+
+    forecasts = pd.DataFrame(
+        {
+            "date": ["2026-06-20"],
+            "kickoff_at": ["2026-06-20T18:00:00Z"],
+            "home_team": ["Argentina"],
+            "away_team": ["Brazil"],
+            "predicted_outcome": ["home_win"],
+            "predicted_winner": ["Argentina"],
+            "model_confidence": [0.61],
+            "prob_home_win": [0.61],
+            "prob_draw": [0.21],
+            "prob_away_win": [0.18],
+        }
+    )
+
+    write_forecasts_to_prediction_ledger(forecasts, database_path=database_path)
+    write_forecasts_to_prediction_ledger(forecasts, database_path=database_path)
+
+    from wc_forecast.storage.prediction_store import read_latest_prediction_ledger
+
+    latest_rows = read_latest_prediction_ledger(database_path)
+
+    assert len(latest_rows) == 1
+    assert latest_rows[0]["home_team"] == "Argentina"

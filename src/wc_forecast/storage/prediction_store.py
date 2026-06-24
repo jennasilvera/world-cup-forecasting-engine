@@ -99,3 +99,27 @@ def read_prediction_ledger(
         ).fetchall()
 
     return [dict(row) for row in rows]
+
+def read_latest_prediction_ledger(
+    database_path: str | Path = DEFAULT_DATABASE_PATH,
+) -> list[dict[str, object]]:
+    """Read the latest prediction row per fixture."""
+
+    from wc_forecast.storage.database import connect_database
+
+    with connect_database(database_path) as connection:
+        rows = connection.execute(
+            """
+            SELECT *
+            FROM prediction_ledger
+            WHERE prediction_timestamp IN (
+                SELECT MAX(prediction_timestamp)
+                FROM prediction_ledger
+                GROUP BY fixture_id
+            )
+            ORDER BY match_date ASC, home_team ASC, away_team ASC
+            """
+        ).fetchall()
+
+    return [dict(row) for row in rows]
+

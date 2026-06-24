@@ -63,6 +63,7 @@ from wc_forecast.storage.external_signals import (
 from wc_forecast.storage.feature_store import write_feature_store_frame
 from wc_forecast.storage.model_registry import list_models, register_model
 from wc_forecast.storage.prediction_store import (
+    read_latest_prediction_ledger,
     read_prediction_ledger,
     write_forecasts_to_prediction_ledger,
 )
@@ -2249,11 +2250,21 @@ def list_prediction_ledger_command(
             help="Maximum ledger rows to show.",
         ),
     ] = 20,
+    latest_only: Annotated[
+        bool,
+        typer.Option(
+            "--latest-only",
+            help="Show only the latest prediction row per fixture.",
+        ),
+    ] = False,
 ) -> None:
     """List recent database-backed prediction ledger rows."""
 
     initialize_database(database_path)
-    rows = read_prediction_ledger(database_path)[:limit]
+    if latest_only:
+        rows = read_latest_prediction_ledger(database_path)[:limit]
+    else:
+        rows = read_prediction_ledger(database_path)[:limit]
 
     table = Table(title="Prediction Ledger")
     table.add_column("Date")
