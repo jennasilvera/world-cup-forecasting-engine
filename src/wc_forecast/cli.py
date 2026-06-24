@@ -2728,3 +2728,30 @@ def list_scheduled_runs_command(
         )
 
     console.print(table)
+
+
+@app.command("serve-api")
+def serve_api_command(
+    host: Annotated[
+        str,
+        typer.Option("--host", help="API host."),
+    ] = "127.0.0.1",
+    port: Annotated[
+        int,
+        typer.Option("--port", help="API port."),
+    ] = 8000,
+    reload: Annotated[
+        bool,
+        typer.Option("--reload", help="Enable development auto-reload."),
+    ] = False,
+) -> None:
+    """Serve the forecast API."""
+
+    import uvicorn
+
+    uvicorn.run(
+        "wc_forecast.api:app",
+        host=host,
+        port=port,
+        reload=reload,
+    )
