@@ -66,6 +66,10 @@ from wc_forecast.storage.prediction_store import (
     read_prediction_ledger,
     write_forecasts_to_prediction_ledger,
 )
+from wc_forecast.storage.scheduled_runs import (
+    list_scheduled_prediction_runs,
+    record_scheduled_prediction_run,
+)
 from wc_forecast.strategy.policy import StrategyPolicy, save_strategy_policy_output
 from wc_forecast.strategy.staking import StakeSizingPolicy, save_stake_sizing_output
 from wc_forecast.validation.feature_ablation import (
@@ -2535,3 +2539,181 @@ def report_clv_command(
     console.print(f"CLV rows written: {len(clv)}")
     console.print(f"Average CLV: {average_clv:.4f}")
     console.print(f"CLV report: {output_path}")
+
+
+@app.command("run-scheduled-predictions")
+def run_scheduled_predictions_command(
+    fixtures_path: Annotated[
+        Path,
+        typer.Option(
+            "--fixtures",
+            help="Path to processed fixture schedule CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_FIXTURES_PATH,
+    features_path: Annotated[
+        Path,
+        typer.Option(
+            "--features",
+            help="Path to model-ready feature table CSV.",
+        ),
+    ] = DEFAULT_FEATURES_PATH,
+    results_path: Annotated[
+        Path,
+        typer.Option(
+            "--results",
+            help="Path to processed historical results CSV.",
+        ),
+    ] = DEFAULT_UPCOMING_FORECAST_RESULTS_PATH,
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for generated forecast CSV.",
+        ),
+    ] = DEFAULT_WORLD_CUP_2026_UPCOMING_FORECASTS_PATH,
+    train_cutoff_date: Annotated[
+        str,
+        typer.Option(
+            "--train-cutoff-date",
+            help="Train only on matches before this date.",
+        ),
+    ] = "2026-01-01",
+    rating_cutoff_date: Annotated[
+        str | None,
+        typer.Option(
+            "--rating-cutoff-date",
+            help="Use ratings/form built only from results before this date.",
+        ),
+    ] = None,
+    as_of: Annotated[
+        str | None,
+        typer.Option(
+            "--as-of",
+            help="Reference timestamp for upcoming filtering. Defaults to current UTC time.",
+        ),
+    ] = None,
+    through_date: Annotated[
+        str | None,
+        typer.Option(
+            "--through-date",
+            help="Optional final fixture date to include.",
+        ),
+    ] = None,
+    write_ledger: Annotated[
+        bool,
+        typer.Option(
+            "--write-ledger",
+            help="Write forecasts to the database-backed prediction ledger.",
+        ),
+    ] = True,
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
+) -> None:
+    """Run an automated scheduled prediction job and audit the run."""
+
+    initialize_database(database_path)
+
+    effective_as_of = as_of or pd.Timestamp.now(tz="UTC").isoformat()
+
+    try:
+        forecasts = save_upcoming_fixture_forecasts_from_results(
+            fixtures_path=fixtures_path,
+            features_path=features_path,
+            results_path=results_path,
+            output_path=output_path,
+            train_cutoff_date=train_cutoff_date,
+            through_date=through_date,
+            as_of=effective_as_of,
+            rating_cutoff_date=rating_cutoff_date,
+        )
+
+        if write_ledger:
+            inserted = write_forecasts_to_prediction_ledger(
+                forecasts,
+                database_path=database_path,
+            )
+            ledger_message = f"wrote {inserted} ledger rows"
+        else:
+            ledger_message = "ledger write skipped"
+
+        run_id = record_scheduled_prediction_run(
+            as_of=effective_as_of,
+            fixtures_path=str(fixtures_path),
+            output_path=str(output_path),
+            status="success",
+            forecast_count=len(forecasts),
+            message=ledger_message,
+            database_path=database_path,
+        )
+
+        console.print("[green]Scheduled prediction run complete.[/green]")
+        console.print(f"Run ID: {run_id}")
+        console.print(f"As of: {effective_as_of}")
+        console.print(f"Forecast count: {len(forecasts)}")
+        console.print(f"Output: {output_path}")
+        console.print(f"Database: {database_path}")
+
+    except Exception as exc:
+        run_id = record_scheduled_prediction_run(
+            as_of=effective_as_of,
+            fixtures_path=str(fixtures_path),
+            output_path=str(output_path),
+            status="failed",
+            forecast_count=0,
+            message=str(exc),
+            database_path=database_path,
+        )
+
+        console.print("[red]Scheduled prediction run failed.[/red]")
+        console.print(f"Run ID: {run_id}")
+        console.print(str(exc))
+        raise typer.Exit(code=1) from exc
+
+
+@app.command("list-scheduled-runs")
+def list_scheduled_runs_command(
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
+    limit: Annotated[
+        int,
+        typer.Option(
+            "--limit",
+            help="Maximum scheduled run rows to show.",
+        ),
+    ] = 20,
+) -> None:
+    """List scheduled prediction run audit rows."""
+
+    initialize_database(database_path)
+    runs = list_scheduled_prediction_runs(database_path)[:limit]
+
+    table = Table(title="Scheduled Prediction Runs")
+    table.add_column("Run ID")
+    table.add_column("Timestamp")
+    table.add_column("As Of")
+    table.add_column("Status")
+    table.add_column("Forecasts")
+    table.add_column("Message")
+
+    for run in runs:
+        table.add_row(
+            str(run["run_id"]),
+            str(run["run_timestamp"]),
+            str(run["as_of"]),
+            str(run["status"]),
+            str(run["forecast_count"]),
+            str(run["message"] or ""),
+        )
+
+    console.print(table)
