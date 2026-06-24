@@ -1,0 +1,4 @@
+prediction_id,match_date,home_team,away_team,predicted_outcome,predicted_winner,model_confidence,prob_home_win,prob_draw,prob_away_win,realized_outcome,market_home_odds,market_draw_odds,market_away_odds,closing_home_odds,closing_draw_odds,closing_away_odds
+pred_1,2026-06-20,Argentina,Brazil,home_win,Argentina,0.61,0.61,0.21,0.18,home_win,2.20,3.40,3.70,2.00,3.60,4.00
+pred_2,2026-06-21,England,France,draw,Draw,0.36,0.32,0.36,0.32,away_win,2.50,3.20,2.90,2.70,3.00,2.70
+pred_3,2026-06-22,Spain,Mexico,away_win,Mexico,0.42,0.31,0.27,0.42,away_win,2.80,3.10,2.60,3.00,3.20,2.40

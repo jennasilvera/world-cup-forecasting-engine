@@ -45,6 +45,8 @@ from wc_forecast.reporting.match_report import (
 )
 from wc_forecast.reporting.prediction_report import save_backtest_report
 from wc_forecast.reports.artifact_index import save_artifact_index
+from wc_forecast.reports.calibration import save_calibration_outputs
+from wc_forecast.reports.closing_line_value import save_clv_table
 from wc_forecast.reports.forecast_audit import save_forecast_audit
 from wc_forecast.reports.upcoming_forecast_report import save_upcoming_forecast_report
 from wc_forecast.simulation.group_stage import save_group_stage_simulation
@@ -2462,3 +2464,74 @@ def _split_csv_option(value: str) -> list[str]:
     """Parse a comma-separated CLI option into non-empty values."""
 
     return [item.strip() for item in value.split(",") if item.strip()]
+
+
+@app.command("report-calibration")
+def report_calibration_command(
+    predictions_path: Annotated[
+        Path,
+        typer.Argument(help="Path to prediction ledger CSV with realized outcomes."),
+    ],
+    output_csv_path: Annotated[
+        Path,
+        typer.Option(
+            "--output-csv",
+            help="Path for calibration table CSV.",
+        ),
+    ] = Path("outputs/calibration_report.csv"),
+    output_plot_path: Annotated[
+        Path,
+        typer.Option(
+            "--output-plot",
+            help="Path for calibration plot PNG.",
+        ),
+    ] = Path("outputs/calibration_plot.png"),
+    n_bins: Annotated[
+        int,
+        typer.Option(
+            "--bins",
+            help="Number of probability bins.",
+        ),
+    ] = 10,
+) -> None:
+    """Generate calibration table and calibration plot from settled predictions."""
+
+    calibration = save_calibration_outputs(
+        predictions_path=predictions_path,
+        output_csv_path=output_csv_path,
+        output_plot_path=output_plot_path,
+        n_bins=n_bins,
+    )
+
+    console.print(f"Calibration rows written: {len(calibration)}")
+    console.print(f"Calibration table: {output_csv_path}")
+    console.print(f"Calibration plot: {output_plot_path}")
+
+
+@app.command("report-clv")
+def report_clv_command(
+    predictions_path: Annotated[
+        Path,
+        typer.Argument(help="Path to prediction ledger CSV with market and closing odds."),
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for closing-line value analytics CSV.",
+        ),
+    ] = Path("outputs/closing_line_value_report.csv"),
+) -> None:
+    """Generate closing-line value analytics from prediction ledger rows."""
+
+    clv = save_clv_table(
+        predictions_path=predictions_path,
+        output_path=output_path,
+    )
+
+    average_clv = clv["closing_line_value"].dropna().mean()
+
+    console.print(f"CLV rows written: {len(clv)}")
+    console.print(f"Average CLV: {average_clv:.4f}")
+    console.print(f"CLV report: {output_path}")
