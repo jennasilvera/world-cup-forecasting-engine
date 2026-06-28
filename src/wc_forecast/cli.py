@@ -2834,3 +2834,54 @@ def build_availability_features_command(
 
     console.print(f"Availability feature rows: {len(features)}")
     console.print(f"Availability features written to: {output_path}")
+
+
+@app.command("adjust-forecasts-for-availability")
+def adjust_forecasts_for_availability_command(
+    forecasts_path: Annotated[
+        Path,
+        typer.Argument(help="Path to forecast CSV."),
+    ],
+    availability_features_path: Annotated[
+        Path,
+        typer.Argument(help="Path to team availability feature CSV."),
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for availability-adjusted forecast CSV.",
+        ),
+    ] = Path("outputs/availability_adjusted_forecasts.csv"),
+    adjustment_strength: Annotated[
+        float,
+        typer.Option(
+            "--adjustment-strength",
+            help="How strongly availability differences shift probabilities.",
+        ),
+    ] = 0.10,
+    max_shift: Annotated[
+        float,
+        typer.Option(
+            "--max-shift",
+            help="Maximum probability shift in either direction.",
+        ),
+    ] = 0.08,
+) -> None:
+    """Apply player availability adjustments to forecast probabilities."""
+
+    from wc_forecast.signals.availability_adjustment import (
+        save_availability_adjusted_forecasts,
+    )
+
+    adjusted = save_availability_adjusted_forecasts(
+        forecasts_path=forecasts_path,
+        availability_features_path=availability_features_path,
+        output_path=output_path,
+        adjustment_strength=adjustment_strength,
+        max_shift=max_shift,
+    )
+
+    console.print(f"Adjusted forecast rows: {len(adjusted)}")
+    console.print(f"Adjusted forecasts written to: {output_path}")
