@@ -2885,3 +2885,31 @@ def adjust_forecasts_for_availability_command(
 
     console.print(f"Adjusted forecast rows: {len(adjusted)}")
     console.print(f"Adjusted forecasts written to: {output_path}")
+
+
+@app.command("report-market-movement")
+def report_market_movement_command(
+    snapshots_path: Annotated[
+        Path,
+        typer.Argument(help="Path to timestamped market odds snapshots CSV."),
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for market movement analytics CSV.",
+        ),
+    ] = Path("outputs/market_movement_report.csv"),
+) -> None:
+    """Generate market movement analytics from odds snapshots."""
+
+    from wc_forecast.signals.market_movement import save_market_movement_table
+
+    movement = save_market_movement_table(
+        snapshots_path=snapshots_path,
+        output_path=output_path,
+    )
+
+    console.print(f"Market movement rows: {len(movement)}")
+    console.print(f"Market movement report written to: {output_path}")

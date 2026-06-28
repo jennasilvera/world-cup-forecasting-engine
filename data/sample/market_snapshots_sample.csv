@@ -1,0 +1,7 @@
+fixture_id,snapshot_timestamp,home_team,away_team,market_home_odds,market_draw_odds,market_away_odds,source
+ARG_BRA_2026,2026-06-19T12:00:00Z,Argentina,Brazil,2.20,3.40,3.70,synthetic
+ARG_BRA_2026,2026-06-20T12:00:00Z,Argentina,Brazil,2.00,3.50,4.10,synthetic
+ENG_FRA_2026,2026-06-19T12:00:00Z,England,France,2.50,3.20,2.90,synthetic
+ENG_FRA_2026,2026-06-20T12:00:00Z,England,France,2.70,3.10,2.65,synthetic
+CRC_ECU_2026,2026-06-19T12:00:00Z,Costa Rica,Ecuador,3.10,3.00,2.35,synthetic
+CRC_ECU_2026,2026-06-20T12:00:00Z,Costa Rica,Ecuador,3.40,3.10,2.15,synthetic
