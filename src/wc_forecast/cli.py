@@ -2755,3 +2755,52 @@ def serve_api_command(
         port=port,
         reload=reload,
     )
+
+
+@app.command("build-dashboard")
+def build_dashboard_command(
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for generated static dashboard HTML.",
+        ),
+    ] = Path("outputs/dashboard.html"),
+    database_path: Annotated[
+        Path,
+        typer.Option(
+            "--database",
+            help="SQLite database path.",
+        ),
+    ] = DEFAULT_DATABASE_PATH,
+    latest_only: Annotated[
+        bool,
+        typer.Option(
+            "--latest-only/--all-ledger-rows",
+            help="Use latest prediction per fixture instead of all ledger rows.",
+        ),
+    ] = True,
+    limit: Annotated[
+        int,
+        typer.Option(
+            "--limit",
+            help="Maximum prediction rows to include.",
+        ),
+    ] = 100,
+) -> None:
+    """Build a static match and portfolio dashboard from the prediction ledger."""
+
+    from wc_forecast.dashboard.static_dashboard import (
+        build_dashboard_from_prediction_ledger,
+    )
+
+    rows = build_dashboard_from_prediction_ledger(
+        output_path=output_path,
+        database_path=database_path,
+        latest_only=latest_only,
+        limit=limit,
+    )
+
+    console.print(f"Dashboard rows: {len(rows)}")
+    console.print(f"Dashboard written to: {output_path}")
