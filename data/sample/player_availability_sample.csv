@@ -1,0 +1,11 @@
+team,player_name,position,status,importance_rating,expected_minutes,source
+Argentina,ARG Player 1,FW,available,92,90,synthetic
+Argentina,ARG Player 2,MF,probable,84,75,synthetic
+Argentina,ARG Player 3,DF,out,78,90,synthetic
+Brazil,BRA Player 1,FW,available,90,90,synthetic
+Brazil,BRA Player 2,MF,questionable,82,70,synthetic
+Brazil,BRA Player 3,DF,suspended,76,90,synthetic
+England,ENG Player 1,FW,available,88,90,synthetic
+England,ENG Player 2,MF,limited,80,60,synthetic
+France,FRA Player 1,FW,available,91,90,synthetic
+France,FRA Player 2,DF,doubtful,79,90,synthetic

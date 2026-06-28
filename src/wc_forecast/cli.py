@@ -2804,3 +2804,33 @@ def build_dashboard_command(
 
     console.print(f"Dashboard rows: {len(rows)}")
     console.print(f"Dashboard written to: {output_path}")
+
+
+@app.command("build-availability-features")
+def build_availability_features_command(
+    input_path: Annotated[
+        Path,
+        typer.Argument(help="Path to player availability CSV."),
+    ],
+    output_path: Annotated[
+        Path,
+        typer.Option(
+            "--output",
+            "-o",
+            help="Path for team-level availability feature CSV.",
+        ),
+    ] = Path("data/processed/player_availability_features.csv"),
+) -> None:
+    """Build team-level availability features from player-level status data."""
+
+    from wc_forecast.signals.player_availability import (
+        save_team_availability_features,
+    )
+
+    features = save_team_availability_features(
+        input_path=input_path,
+        output_path=output_path,
+    )
+
+    console.print(f"Availability feature rows: {len(features)}")
+    console.print(f"Availability features written to: {output_path}")
